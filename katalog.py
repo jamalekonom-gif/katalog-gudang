@@ -28,7 +28,9 @@ if search and not df.empty:
     if not hasil.empty:
         for index, row in hasil.iterrows():
             with st.container():
-                col1, col2 = st.columns([1, 2])
+                # Kita atur perbandingan kolom (1 untuk foto, 4 untuk teks) 
+                # Agar kolom foto lebih kecil
+                col1, col2 = st.columns([1, 4])
                 
                 nama_indo = str(row.get('Nama_Indo', '-'))
                 nama_mand = str(row.get('Nama_Mandarin', '-'))
@@ -37,19 +39,23 @@ if search and not df.empty:
                 
                 with col1:
                     if foto_id and foto_id != 'nan' and foto_id != '0':
-                        # KODE PINTAR: Cek apakah sudah ada .jpg di nama file
                         if not foto_id.lower().endswith('.jpg'):
                             final_foto_id = foto_id + ".jpg"
                         else:
                             final_foto_id = foto_id
                             
                         url_foto = f"{BASE_URL}{final_foto_id}"
-                        st.image(url_foto, use_container_width=True)
+                        
+                        # MODIFIKASI DISINI: 
+                        # Kita batasi lebar gambar (width) agar tidak terlalu besar
+                        st.image(url_foto, width=200) 
                     else:
                         st.info("Foto belum ada")
                 
                 with col2:
-                    st.header(nama_indo)
-                    st.subheader(f"Mandarin: {nama_mand}")
+                    st.subheader(nama_indo)
+                    st.write(f"**Mandarin:** {nama_mand}")
                     st.write(f"**Kode Material:** {kode_mat}")
                 st.divider()
+    else:
+        st.warning("Barang tidak ditemukan.")
