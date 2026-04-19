@@ -10,11 +10,11 @@ st.title("📦 Katalog Barang Gudang")
 
 @st.cache_data
 def load_data():
-    # Mencoba membaca file CSV dari WPS dengan berbagai cara
-    for enc in ['utf-8-sig', 'gb18030', 'cp1252', 'latin1']:
+    # Mencoba membaca file CSV dari WPS dengan encoding yang mendukung Mandarin
+    encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
+    for enc in encodings:
         try:
             df = pd.read_csv("data_barang.csv", encoding=enc)
-            # Membersihkan nama kolom agar tidak ada spasi tersembunyi
             df.columns = df.columns.str.strip()
             return df
         except:
@@ -33,7 +33,7 @@ if search and not df.empty:
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 
-                # Mengambil data sesuai kolom di Excel Bapak (B, C, D)
+                # Mengambil data kolom B, C, D
                 nama_indo = str(row.get('Nama_Indo', '-'))
                 nama_mand = str(row.get('Nama_Mandarin', '-'))
                 foto_id = str(row.get('Foto', '')).strip()
@@ -41,13 +41,13 @@ if search and not df.empty:
                 
                 with col1:
                     if foto_id and foto_id != 'nan' and foto_id != '0':
-                        # Memanggil foto JPG dari Cloudinary
+                        # Memanggil foto. Tambahkan .jpg otomatis
                         url_foto = f"{BASE_URL}{foto_id}.jpg"
-                        st.image(url_foto, use_container_width=True)
-                        # Link bantu jika gambar masih pecah
-                        st.caption(f"[Cek Link Foto](https://res.cloudinary.com/{CLOUD_NAME}/image/upload/{foto_id}.jpg)")
+                        st.image(url_foto, use_container_width=True, caption=f"ID: {foto_id}")
+                        # Link bantuan cek manual
+                        st.caption(f"[Cek Foto Klik Sini](https://res.cloudinary.com/{CLOUD_NAME}/image/upload/{foto_id}.jpg)")
                     else:
-                        st.warning("Foto tidak ditemukan")
+                        st.warning("Foto belum diatur")
                 
                 with col2:
                     st.header(nama_indo)
