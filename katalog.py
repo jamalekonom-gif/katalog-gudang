@@ -9,8 +9,8 @@ st.title("📦 Katalog Barang Gudang")
 
 @st.cache_data
 def load_data():
-    # Mencoba berbagai cara baca agar huruf Mandarin tidak rusak
-    for enc in ['utf-8-sig', 'utf-8', 'latin1', 'gbk']:
+    # Mencoba membaca dengan berbagai format agar Mandarin muncul
+    for enc in ['utf-8-sig', 'utf-8', 'gb18030', 'cp1252']:
         try:
             df = pd.read_csv("data_barang.csv", encoding=enc)
             df.columns = df.columns.str.strip()
@@ -31,22 +31,26 @@ if search and not df.empty:
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 
-                # Mengambil data kolom B, C, D
                 nama_indo = str(row.get('Nama_Indo', '-'))
                 nama_mand = str(row.get('Nama_Mandarin', '-'))
                 foto_id = str(row.get('Foto', '')).strip()
                 kode_mat = str(row.get('Kode', '-'))
                 
                 with col1:
-                    if foto_id and foto_id != 'nan':
-                        # Kita panggil foto JPG
+                    if foto_id and foto_id != 'nan' and foto_id != '0':
+                        # Kode ini mencoba menampilkan foto
                         url = f"{BASE_URL}{foto_id}.jpg"
                         st.image(url, use_container_width=True)
                     else:
-                        st.info("Foto tidak ada")
+                        st.warning("Foto tidak ditemukan")
                 
                 with col2:
                     st.header(nama_indo)
                     st.subheader(f"Mandarin: {nama_mand}")
                     st.write(f"**Kode:** {kode_mat}")
+                    # Link rahasia untuk tes (Klik ini kalau gambar pecah)
+                    if foto_id:
+                        st.caption(f"[Klik untuk tes link foto](https://res.cloudinary.com/{CLOUD_NAME}/image/upload/{foto_id}.jpg)")
                 st.divider()
+    else:
+        st.warning("Barang tidak ditemukan.")
