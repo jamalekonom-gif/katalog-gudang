@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-# Identitas Cloudinary Bapak
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/"
 
@@ -10,18 +9,15 @@ st.title("📦 Katalog Barang Gudang")
 
 @st.cache_data
 def load_data():
-    try:
+    # Mencoba berbagai cara baca agar huruf Mandarin tidak rusak
+    for enc in ['utf-8-sig', 'utf-8', 'latin1', 'gbk']:
         try:
-            df = pd.read_csv("data_barang.csv", encoding='utf-8')
+            df = pd.read_csv("data_barang.csv", encoding=enc)
+            df.columns = df.columns.str.strip()
+            return df
         except:
-            df = pd.read_csv("data_barang.csv", encoding='latin1')
-        
-        # Membersihkan nama kolom dari spasi agar pas dengan Nama_Indo, dll
-        df.columns = df.columns.str.strip()
-        return df
-    except Exception as e:
-        st.error(f"Gagal membaca file CSV: {e}")
-        return pd.DataFrame()
+            continue
+    return pd.DataFrame()
 
 df = load_data()
 
@@ -33,27 +29,24 @@ if search and not df.empty:
     if not hasil.empty:
         for index, row in hasil.iterrows():
             with st.container():
-                col1, col2 = st.columns([1, 3])
+                col1, col2 = st.columns([1, 2])
                 
-                # MENGAMBIL DATA DARI EXCEL BAPAK
-                nama_indo = str(row.get('Nama_Indo', 'Tidak Ada Nama'))
-                nama_mandarin = str(row.get('Nama_Mandarin', '-'))
-                kode_barang = str(row.get('Kode', '-'))
-                # Kita ambil kolom Foto untuk gambar
+                # Mengambil data kolom B, C, D
+                nama_indo = str(row.get('Nama_Indo', '-'))
+                nama_mand = str(row.get('Nama_Mandarin', '-'))
                 foto_id = str(row.get('Foto', '')).strip()
+                kode_mat = str(row.get('Kode', '-'))
                 
                 with col1:
                     if foto_id and foto_id != 'nan':
-                        # Memanggil foto dari Cloudinary
-                        url_foto = f"{BASE_URL}{foto_id}.jpg"
-                        st.image(url_foto, use_container_width=True)
+                        # Kita panggil foto JPG
+                        url = f"{BASE_URL}{foto_id}.jpg"
+                        st.image(url, use_container_width=True)
                     else:
-                        st.info("Foto tidak tersedia")
+                        st.info("Foto tidak ada")
                 
                 with col2:
-                    st.subheader(nama_indo)
-                    st.write(f"**Nama Mandarin:** {nama_mandarin}")
-                    st.write(f"**Kode Material:** {kode_barang}")
+                    st.header(nama_indo)
+                    st.subheader(f"Mandarin: {nama_mand}")
+                    st.write(f"**Kode:** {kode_mat}")
                 st.divider()
-    else:
-        st.warning("Barang tidak ditemukan.")
