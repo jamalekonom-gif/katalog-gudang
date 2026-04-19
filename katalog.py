@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-# Pastikan Cloud Name Bapak benar
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/"
 
@@ -10,7 +9,6 @@ st.title("📦 Katalog Barang Gudang")
 
 @st.cache_data
 def load_data():
-    # Mencoba membaca file CSV dari WPS dengan encoding yang mendukung Mandarin
     encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
     for enc in encodings:
         try:
@@ -22,7 +20,6 @@ def load_data():
     return pd.DataFrame()
 
 df = load_data()
-
 search = st.text_input("Cari Nama Barang atau Kode Material:")
 
 if search and not df.empty:
@@ -33,7 +30,6 @@ if search and not df.empty:
             with st.container():
                 col1, col2 = st.columns([1, 2])
                 
-                # Mengambil data kolom B, C, D
                 nama_indo = str(row.get('Nama_Indo', '-'))
                 nama_mand = str(row.get('Nama_Mandarin', '-'))
                 foto_id = str(row.get('Foto', '')).strip()
@@ -41,18 +37,19 @@ if search and not df.empty:
                 
                 with col1:
                     if foto_id and foto_id != 'nan' and foto_id != '0':
-                        # Memanggil foto. Tambahkan .jpg otomatis
-                        url_foto = f"{BASE_URL}{foto_id}.jpg"
-                        st.image(url_foto, use_container_width=True, caption=f"ID: {foto_id}")
-                        # Link bantuan cek manual
-                        st.caption(f"[Cek Foto Klik Sini](https://res.cloudinary.com/{CLOUD_NAME}/image/upload/{foto_id}.jpg)")
+                        # KODE PINTAR: Cek apakah sudah ada .jpg di nama file
+                        if not foto_id.lower().endswith('.jpg'):
+                            final_foto_id = foto_id + ".jpg"
+                        else:
+                            final_foto_id = foto_id
+                            
+                        url_foto = f"{BASE_URL}{final_foto_id}"
+                        st.image(url_foto, use_container_width=True)
                     else:
-                        st.warning("Foto belum diatur")
+                        st.info("Foto belum ada")
                 
                 with col2:
                     st.header(nama_indo)
                     st.subheader(f"Mandarin: {nama_mand}")
                     st.write(f"**Kode Material:** {kode_mat}")
                 st.divider()
-    else:
-        st.warning("Barang tidak ditemukan.")
