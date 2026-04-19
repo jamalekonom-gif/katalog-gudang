@@ -1,60 +1,45 @@
 import streamlit as st
 import pandas as pd
-import os
 
-st.set_page_config(page_title="Katalog Gudang Digital", layout="wide")
+# Masukkan Cloud Name Bapak yang tadi
+CLOUD_NAME = "dj4xyen1s"
+# Ini adalah alamat dasar foto Bapak di internet
+BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/"
 
+st.set_page_config(page_title="Katalog Gudang Online", layout="wide")
+st.title("📦 Katalog Barang Gudang")
+
+# Fungsi untuk baca data
 @st.cache_data
 def load_data():
-    file_path = "data_barang.csv"
-    if os.path.exists(file_path):
-        # Mencoba format paling umum untuk Mandarin (GB18030 atau UTF-8)
-        for enc in ['gb18030', 'utf-8-sig', 'utf-8', 'latin-1']:
-            try:
-                # Coba baca dengan koma atau titik koma
-                for sep in [',', ';']:
-                    df = pd.read_csv(file_path, encoding=enc, sep=sep)
-                    if not df.empty:
-                        # Bersihkan nama kolom
-                        df.columns = [str(c).strip().lower() for c in df.columns]
-                        return df
-            except:
-                continue
-    return pd.DataFrame()
+    return pd.read_csv("data_barang.csv")
 
-st.title("📦 Katalog Barang Gudang")
 df = load_data()
 
-if not df.empty:
-    st.success(f"✅ Berhasil memuat {len(df)} data barang.")
-    cari = st.text_input("Ketik Nama Barang atau Kode di sini...")
+# Kolom Pencarian
+search = st.text_input("Cari Kode Material atau Nama Barang:")
+
+if search:
+    # Cari di semua kolom
+    hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
     
-    if cari:
-        # Mencari di semua kolom dan pastikan semua jadi teks
-        hasil = df[df.astype(str).apply(lambda x: x.str.contains(cari, case=False)).any(axis=1)]
-        
-        if not hasil.empty:
-            for i, row in hasil.iterrows():
-                col1, col2 = st.columns([1, 4])
+    if not hasil.empty:
+        for index, row in hasil.iterrows():
+            with st.container():
+                col1, col2 = st.columns([1, 3])
                 with col1:
-                    # Cari kolom foto
-                    c_foto = [c for c in df.columns if 'foto' in c]
-                    nama_f = str(row[c_foto[0]]) if c_foto else ""
-                    path = os.path.join("FOTO MATERIAL", nama_f)
-                    if os.path.exists(path) and nama_f != "nan" and nama_f != "":
-                        st.image(path, width=150)
-                    else:
-                        st.warning("No Photo")
-                with col2:
-                    # Cari kolom nama dan kode
-                    c_indo = [c for c in df.columns if 'indo' in c]
-                    c_mand = [c for c in df.columns if 'mandarin' in c]
-                    c_kode = [c for c in df.columns if 'kode' in c]
+                    # RAKIT LINK FOTO OTOMATIS
+                    # Menggabungkan Alamat Cloudinary + Nama File di Excel
+                    url_foto = BASE_URL + str(row['Foto'])
                     
-                    st.subheader(f"{row[c_indo[0]] if c_indo else 'N/A'} / {row[c_mand[0]] if c_mand else 'N/A'}")
-                    st.write(f"**Kode:** {row[c_kode[0]] if c_kode else 'N/A'}")
+                    # Menampilkan Foto
+                    st.image(url_foto, use_container_width=True)
+                
+                with col2:
+                    st.subheader(row['Nama Barang'])
+                    st.write(f"**Kode Material:** {row['Foto']}")
+                    # Bapak bisa tambah kolom lain di sini, misal:
+                    # st.write(f"**Lokasi Rak:** {row['Lokasi']}")
                 st.divider()
-        else:
-            st.info("Barang tidak ditemukan.")
-else:
-    st.error("Gagal membaca file 'data_barang.csv'.")
+    else:
+        st.warning("Barang tidak ditemukan.")
