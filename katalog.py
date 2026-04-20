@@ -152,6 +152,16 @@ else:
                                 st.session_state.kotak_saran.append({"Waktu": datetime.now().strftime("%H:%M"), "Oleh": st.session_state.nama_user, "Detail": f"{row.get('Nama_Indo')} - {s}"})
                                 st.success("Terkirim!")
                 st.markdown('</div>', unsafe_allow_html=True)
+                # Tambahkan ini di bagian load data agar chat bisa terbaca antar sesi
+def load_chat():
+    if os.path.exists("chat_history.csv"):
+        return pd.read_csv("chat_history.csv").to_dict('records')
+    return []
+
+def save_chat(user, pesan):
+    waktu = datetime.now().strftime("%H:%M")
+    new_chat = pd.DataFrame([{"Waktu": waktu, "User": user, "Pesan": pesan}])
+    new_chat.to_csv("chat_history.csv", mode='a', header=not os.path.exists("chat_history.csv"), index=False)
 
     # --- KRITIK SARAN UMUM (Hanya Karyawan) ---
     if st.session_state.nik_user != "84200082":
