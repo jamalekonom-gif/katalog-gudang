@@ -8,14 +8,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. DAFTAR NIK (Silakan tambah NIK karyawan di sini)
-NIK_TERDAFTAR = ["84200061", "84200082", "85400228", "84300997", "84102172", "80519113"]
+# 2. DAFTAR NIK DAN NAMA KARYAWAN (Silakan tambah di sini)
+# Formatnya: "NIK": "Nama Karyawan"
+DATA_KARYAWAN = {
+    "84200061": "ENNI ROSDAENI",
+    "84200082": "JAMALUDDIN",
+    "85400228": "PUTRI",
+    "84300997": "MUH. TAWAKKAL"
+    "84102172": "WAHYU DWI SETYAN"
+    "80519113": "UMI KHOLIFA"
+}
 
 # 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# CSS UNTUK TAMPILAN PROFESIONAL & LOGIN DI TENGAH
+# CSS UNTUK TAMPILAN PROFESIONAL
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -25,15 +33,13 @@ st.markdown("""
     
     .main { background-color: #f8f9fa; }
     
-    /* Box Login di Tengah */
+    /* Box Login */
     .login-box {
         background-color: white;
         padding: 30px;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         text-align: center;
-        max-width: 400px;
-        margin: auto;
     }
 
     /* Ukuran Gambar Katalog */
@@ -73,35 +79,37 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 4. LOGIKA LOGIN (HALAMAN UTAMA)
+# 4. LOGIKA LOGIN
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.nama_user = ""
 
 if not st.session_state.logged_in:
-    # TAMPILAN LOGIN DI TENGAH
-    st.write("#") # Kasih jarak atas
-    col1, col2, col3 = st.columns([1, 2, 1]) # Buat kolom agar box ada di tengah
+    st.write("#")
+    col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         st.image("https://cdn-icons-png.flaticon.com/512/408/408710.png", width=100)
         st.title("🔒 Akses Gudang")
-        st.write("Silakan masukkan NIK Anda untuk melihat katalog.")
+        st.write("Silakan masukkan NIK Anda.")
         
-        nik_input = st.text_input("NIK Karyawan:", type="password", placeholder="Ketik NIK di sini...")
+        nik_input = st.text_input("NIK Karyawan:", type="password", placeholder="Ketik NIK...")
         
         if st.button("Masuk Ke Sistem", use_container_width=True):
-            if nik_input in NIK_TERDAFTAR:
+            if nik_input in DATA_KARYAWAN:
                 st.session_state.logged_in = True
+                st.session_state.nama_user = DATA_KARYAWAN[nik_input] # Ambil nama berdasarkan NIK
                 st.rerun()
             else:
                 st.error("⚠️ NIK Tidak Terdaftar!")
 else:
-    # --- HALAMAN KATALOG (Jika sudah login) ---
+    # --- HALAMAN KATALOG ---
     st.title("📦 Digital Warehouse Catalog")
+    # Menampilkan Nama Karyawan yang sedang login
+    st.info(f"👤 Selamat Bekerja, **{st.session_state.nama_user}**!")
     
-    # Tombol Logout ditaruh di Sidebar agar tidak mengganggu pencarian
     with st.sidebar:
-        st.success("✅ Anda Terverifikasi")
+        st.write(f"Logged in as: **{st.session_state.nama_user}**")
         if st.button("Keluar (Logout)", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
@@ -143,10 +151,9 @@ else:
                         st.markdown(f'<span class="mandarin-text">{row.get("Nama_Mandarin", "-")}</span>', unsafe_allow_html=True)
                         st.write("")
                         st.markdown(f"**Kode Material:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
-                        st.markdown("---")
-                        st.markdown("✅ **Status:** Barang Aktif")
+                        # TULISAN STATUS SUDAH DIHAPUS DI SINI
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("Data tidak ditemukan.")
     elif not search:
-        st.info("Silakan ketik nama barang untuk mencari.")
+        st.write("Silakan ketik pada kolom pencarian di atas.")
