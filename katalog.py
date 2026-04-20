@@ -25,7 +25,7 @@ if "kotak_saran" not in st.session_state:
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# CSS - TAMPILAN BERSIH
+# CSS - BERSIH TANPA SIDEBAR
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -73,7 +73,7 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- MENU ADMIN PAK JAMALUDDIN ---
+    # --- MENU ADMIN PAK JAMALUDDIN (HANYA BACA LAPORAN) ---
     if st.session_state.nik_user == "84200082":
         with st.expander("📊 MENU ADMIN (RAHASIA: LAPORAN & SARAN KARYAWAN)"):
             tab1, tab2 = st.tabs(["👥 Riwayat Kunjungan", "📩 Semua Kritik & Saran"])
@@ -86,11 +86,28 @@ else:
                 if st.session_state.kotak_saran:
                     st.table(pd.DataFrame(st.session_state.kotak_saran))
                 else:
-                    st.write("Belum ada kritik/saran yang masuk.")
+                    st.write("Belum ada saran yang masuk.")
+    
+    # --- JIKA BUKAN PAK JAMALUDDIN, TAMPILKAN KOTAK SARAN UMUM ---
+    else:
+        st.divider()
+        st.subheader("📢 Kritik & Saran Umum")
+        saran_umum = st.text_area("Punya masukan atau keluhan terkait gudang? Tulis di sini...", key="saran_umum_input")
+        if st.button("Kirim Saran Umum", use_container_width=True):
+            if saran_umum:
+                st.session_state.kotak_saran.append({
+                    "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "Oleh": st.session_state.nama_user,
+                    "Jenis": "Umum",
+                    "Detail": saran_umum
+                })
+                st.success(f"✅ Terima kasih {st.session_state.nama_user}, saran Anda telah berhasil terkirim ke Pak Jamaluddin!")
+            else:
+                st.warning("Mohon isi saran terlebih dahulu.")
 
     st.divider()
     
-    # --- FITUR PENCARIAN BARANG ---
+    # --- PENCARIAN BARANG ---
     def load_data():
         encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
         for enc in encodings:
@@ -120,38 +137,19 @@ else:
                         st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin', '-')}</span>", unsafe_allow_html=True)
                         st.write(f"**Kode:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                         
-                        # Saran Per Barang
-                        with st.expander("📝 Catatan khusus untuk barang ini"):
-                            s_khusus = st.text_area("Ada kendala dengan barang ini?", key=f"khusus_{i}")
-                            if st.button("Kirim Catatan Barang", key=f"btn_khusus_{i}"):
-                                if s_khusus:
-                                    st.session_state.kotak_saran.append({
-                                        "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                                        "Oleh": st.session_state.nama_user,
-                                        "Jenis": "Spesifik Barang",
-                                        "Detail": f"{row.get('Nama_Indo')} - {s_khusus}"
-                                    })
-                                    st.success("Terkirim!")
-                                    st.rerun()
+                        # Kotak Saran Khusus Barang (Hanya muncul jika bukan Admin)
+                        if st.session_state.nik_user != "84200082":
+                            with st.expander("📝 Berikan Catatan/Saran untuk barang ini"):
+                                s_khusus = st.text_area("Tulis catatan...", key=f"khusus_{i}")
+                                if st.button("Kirim Catatan", key=f"btn_khusus_{i}"):
+                                    if s_khusus:
+                                        st.session_state.kotak_saran.append({
+                                            "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                                            "Oleh": st.session_state.nama_user,
+                                            "Jenis": "Spesifik Barang",
+                                            "Detail": f"{row.get('Nama_Indo')} - {s_khusus}"
+                                        })
+                                        st.success("✅ Terkirim ke Pak Jamaluddin!")
+                                    else:
+                                        st.warning("Mohon isi pesan.")
                     st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.warning("Data tidak ditemukan.")
-    
-    # --- FITUR KRITIK & SARAN UMUM (DI HALAMAN UTAMA) ---
-    st.divider()
-    st.subheader("📢 Kritik & Saran Umum")
-    with st.container():
-        st.write("Punya masukan atau keluhan terkait gudang? Tulis di bawah ini (Hanya Pak Jamaluddin yang bisa baca).")
-        saran_umum = st.text_area("Tulis kritik/saran Anda di sini...", placeholder="Contoh: Lampu gudang 6 mati, atau saran aplikasi...", key="saran_umum_input")
-        if st.button("Kirim Saran Umum", use_container_width=True):
-            if saran_umum:
-                st.session_state.kotak_saran.append({
-                    "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                    "Oleh": st.session_state.nama_user,
-                    "Jenis": "Umum",
-                    "Detail": saran_umum
-                })
-                st.success("Terima kasih! Saran umum Anda telah terkirim secara rahasia.")
-                st.rerun()
-            else:
-                st.warning("Mohon isi saran terlebih dahulu.")
