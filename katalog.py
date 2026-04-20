@@ -23,14 +23,14 @@ if "log_kunjungan" not in st.session_state:
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# CSS - DIBUAT BERSIH TANPA SIDEBAR
+# CSS - TANPA SIDEBAR & TAMPILAN BERSIH
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
-    [data-testid="stSidebar"] {display: none;} /* INI UNTUK MENGHAPUS SIDEBAR SEPENUHNYA */
+    [data-testid="stSidebar"] {display: none;}
     
     .stImage img { max-height: 250px; width: auto; border-radius: 10px; object-fit: contain; }
     .product-card { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #007bff; }
@@ -55,7 +55,6 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
-                # Catat Kunjungan
                 waktu = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                 st.session_state.log_kunjungan.append({"Waktu": waktu, "Nama": st.session_state.nama_user, "NIK": nik_input})
                 st.rerun()
@@ -65,7 +64,6 @@ else:
     # --- HALAMAN UTAMA SETELAH LOGIN ---
     st.title("📦 Digital Warehouse Catalog")
     
-    # Header Nama & Tombol Keluar Langsung di Layar Utama
     c_nama, c_logout = st.columns([4, 1])
     with c_nama:
         st.info(f"Selamat bekerja, **{st.session_state.nama_user}**!")
@@ -74,9 +72,9 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- PINTU RAHASIA PAK JAMALUDDIN (LANGSUNG MUNCUL DI BAWAH) ---
+    # --- PINTU RAHASIA PAK JAMALUDDIN ---
     if st.session_state.nik_user == "84200082":
-        with st.expander("📊 KLIK DI SINI UNTUK LIHAT LAPORAN PENGUNJUNG (RAHASIA)"):
+        with st.expander("📊 KLIK DI SINI UNTUK LIHAT LAPORAN PENGUNJUNG"):
             if st.session_state.log_kunjungan:
                 st.table(pd.DataFrame(st.session_state.log_kunjungan))
             else:
@@ -84,25 +82,36 @@ else:
 
     st.divider()
     
-    # Pencarian Barang
+    # --- FUNGSI LOAD DATA (DIPERBAIKI AGAR TIDAK ERROR UNICODE) ---
+    def load_data():
+        encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
+        for enc in encodings:
+            try:
+                df = pd.read_csv("data_barang.csv", encoding=enc).fillna('')
+                df.columns = df.columns.str.strip()
+                return df
+            except:
+                continue
+        return pd.DataFrame()
+
+    df = load_data()
     search = st.text_input("", placeholder="🔍 Cari Nama Barang atau Kode Material...")
     
-    df = pd.read_csv("data_barang.csv", encoding='utf-8-sig').fillna('')
-    if search:
+    if search and not df.empty:
         hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
         if not hasil.empty:
             for _, row in hasil.iterrows():
                 with st.container():
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    col_foto, col_teks = st.columns([1, 2.5])
-                    with col_foto:
-                        foto = str(row['Foto']).strip()
+                    c_foto, c_teks = st.columns([1, 2.5])
+                    with c_foto:
+                        foto = str(row.get('Foto', '')).strip()
                         url = f"{BASE_URL}{foto}.jpg" if foto else "https://via.placeholder.com/300"
                         st.image(url, use_container_width=True)
-                    with col_teks:
-                        st.markdown(f"### {row['Nama_Indo']}")
-                        st.markdown(f"<span class='mandarin-text'>{row['Nama_Mandarin']}</span>", unsafe_allow_html=True)
-                        st.write(f"**Kode:** <span class='kode-badge'>{row['Kode']}</span>", unsafe_allow_html=True)
+                    with c_teks:
+                        st.markdown(f"### {row.get('Nama_Indo', '-')}")
+                        st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin', '-')}</span>", unsafe_allow_html=True)
+                        st.write(f"**Kode:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("Data tidak ditemukan.")
