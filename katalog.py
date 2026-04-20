@@ -15,7 +15,7 @@ NIK_TERDAFTAR = ["84200061", "84200082", "85400228", "84300997", "84102172", "80
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# CSS UNTUK MENYEMBUNYIKAN MENU STREAMLIT DAN MEMPERCANTIK TAMPILAN
+# CSS UNTUK TAMPILAN PROFESIONAL & LOGIN DI TENGAH
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -25,7 +25,18 @@ st.markdown("""
     
     .main { background-color: #f8f9fa; }
     
-    /* MODIFIKASI UKURAN GAMBAR AGAR TIDAK TERLALU BESAR */
+    /* Box Login di Tengah */
+    .login-box {
+        background-color: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: center;
+        max-width: 400px;
+        margin: auto;
+    }
+
+    /* Ukuran Gambar Katalog */
     .stImage img {
         max-height: 250px;
         width: auto;
@@ -58,39 +69,43 @@ st.markdown("""
         padding: 3px 12px;
         border-radius: 50px;
         font-family: monospace;
-        font-size: 0.8em;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 4. SISTEM LOGIN
+# 4. LOGIKA LOGIN (HALAMAN UTAMA)
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-with st.sidebar:
-    st.markdown("### 🔒 Akses Gudang")
-    st.image("https://cdn-icons-png.flaticon.com/512/408/408710.png", width=80)
+if not st.session_state.logged_in:
+    # TAMPILAN LOGIN DI TENGAH
+    st.write("#") # Kasih jarak atas
+    col1, col2, col3 = st.columns([1, 2, 1]) # Buat kolom agar box ada di tengah
     
-    if not st.session_state.logged_in:
-        nik_input = st.text_input("NIK Karyawan:", type="password", placeholder="Masukkan NIK...")
+    with col2:
+        st.image("https://cdn-icons-png.flaticon.com/512/408/408710.png", width=100)
+        st.title("🔒 Akses Gudang")
+        st.write("Silakan masukkan NIK Anda untuk melihat katalog.")
+        
+        nik_input = st.text_input("NIK Karyawan:", type="password", placeholder="Ketik NIK di sini...")
+        
         if st.button("Masuk Ke Sistem", use_container_width=True):
             if nik_input in NIK_TERDAFTAR:
                 st.session_state.logged_in = True
                 st.rerun()
             else:
-                st.error("NIK Tidak Terdaftar")
-    else:
-        st.success("✅ Terverifikasi")
-        st.divider()
+                st.error("⚠️ NIK Tidak Terdaftar!")
+else:
+    # --- HALAMAN KATALOG (Jika sudah login) ---
+    st.title("📦 Digital Warehouse Catalog")
+    
+    # Tombol Logout ditaruh di Sidebar agar tidak mengganggu pencarian
+    with st.sidebar:
+        st.success("✅ Anda Terverifikasi")
         if st.button("Keluar (Logout)", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
-# 5. HALAMAN UTAMA (KATALOG)
-if st.session_state.logged_in:
-    st.title("📦 Digital Warehouse Catalog")
-    st.caption("Manajemen Informasi Material & Inventaris")
-    
     def load_data():
         encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
         for enc in encodings:
@@ -113,35 +128,25 @@ if st.session_state.logged_in:
             for index, row in hasil.iterrows():
                 with st.container():
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    col1, col2 = st.columns([1, 2.5])
+                    c1, c2 = st.columns([1, 2.5])
                     
-                    nama_indo = str(row.get('Nama_Indo', '-'))
-                    nama_mand = str(row.get('Nama_Mandarin', '-'))
-                    kode_mat = str(row.get('Kode', '-'))
-                    foto_id = str(row.get('Foto', '')).strip()
-
-                    with col1:
+                    with c1:
+                        foto_id = str(row.get('Foto', '')).strip()
                         if foto_id and foto_id not in ['nan', '0', '']:
                             final_foto_id = foto_id if foto_id.lower().endswith('.jpg') else foto_id + ".jpg"
                             st.image(f"{BASE_URL}{final_foto_id}", use_container_width=True)
                         else:
                             st.image("https://via.placeholder.com/300x300?text=Foto+Kosong", use_container_width=True)
 
-                    with col2:
-                        st.markdown(f"### {nama_indo}")
-                        st.markdown(f'<span class="mandarin-text">{nama_mand}</span>', unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(f"### {row.get('Nama_Indo', '-')}")
+                        st.markdown(f'<span class="mandarin-text">{row.get("Nama_Mandarin", "-")}</span>', unsafe_allow_html=True)
                         st.write("")
-                        # BAGIAN YANG DIPERBAIKI (Tanda petik sudah benar sekarang)
-                        st.markdown(f"**Kode Material:** <span class='kode-badge'>{kode_mat}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Kode Material:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                         st.markdown("---")
                         st.markdown("✅ **Status:** Barang Aktif")
-                    
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.warning("⚠️ Data tidak ditemukan.")
+            st.warning("Data tidak ditemukan.")
     elif not search:
-        st.info("Silakan ketik nama barang atau kode material pada kolom pencarian di atas.")
-
-else:
-    st.markdown("---")
-    st.warning("Mohon login terlebih dahulu melalui panel samping kiri.")
+        st.info("Silakan ketik nama barang untuk mencari.")
