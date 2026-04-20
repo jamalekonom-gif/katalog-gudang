@@ -9,11 +9,10 @@ st.set_page_config(
 )
 
 # 2. DAFTAR NIK (Silakan tambah NIK karyawan di sini)
-NIK_TERDAFTAR = ["84200082", "84200061", "85400228", 84300997, 84102172, 80519113]
+NIK_TERDAFTAR = ["84200061", "84200082", "85400228", "84300997", "84102172", "80519113"]
 
 # 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
-# MODIFIKASI: Menambahkan f_auto dan q_auto agar Cloudinary otomatis mengompres foto
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
 # CSS UNTUK MENYEMBUNYIKAN MENU STREAMLIT DAN MEMPERCANTIK TAMPILAN
@@ -88,7 +87,6 @@ if st.session_state.logged_in:
         encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
         for enc in encodings:
             try:
-                # Tanpa cache agar refresh langsung update data
                 df = pd.read_csv("data_barang.csv", encoding=enc, low_memory=False)
                 df.columns = df.columns.str.strip()
                 return df
@@ -109,21 +107,24 @@ if st.session_state.logged_in:
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
                     col1, col2 = st.columns([1, 2.5])
                     
+                    nama_indo = str(row.get('Nama_Indo', '-'))
+                    nama_mand = str(row.get('Nama_Mandarin', '-'))
+                    kode_mat = str(row.get('Kode', '-'))
+                    foto_id = str(row.get('Foto', '')).strip()
+
                     with col1:
-                        foto_id = str(row.get('Foto', '')).strip()
                         if foto_id and foto_id not in ['nan', '0', '']:
-                            # Memastikan format file benar
                             final_foto_id = foto_id if foto_id.lower().endswith('.jpg') else foto_id + ".jpg"
-                            # Cloudinary URL dengan f_auto,q_auto untuk penghematan data
                             st.image(f"{BASE_URL}{final_foto_id}", use_container_width=True)
                         else:
                             st.image("https://via.placeholder.com/300x300?text=Foto+Kosong", use_container_width=True)
 
                     with col2:
-                        st.markdown(f"### {row.get('Nama_Indo', '-')}")
-                        st.markdown(f'<span class="mandarin-text">{row.get('Nama_Mandarin', '-')}</span>', unsafe_allow_html=True)
+                        st.markdown(f"### {nama_indo}")
+                        st.markdown(f'<span class="mandarin-text">{nama_mand}</span>', unsafe_allow_html=True)
                         st.write("")
-                        st.markdown(f"**Kode Material:** <span class="kode-badge">{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
+                        # BAGIAN YANG DIPERBAIKI (Tanda petik sudah benar sekarang)
+                        st.markdown(f"**Kode Material:** <span class='kode-badge'>{kode_mat}</span>", unsafe_allow_html=True)
                         st.markdown("---")
                         st.markdown("✅ **Status:** Barang Aktif")
                     
