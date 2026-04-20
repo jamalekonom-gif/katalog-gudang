@@ -101,7 +101,7 @@ else:
                     "Jenis": "Umum",
                     "Detail": saran_umum
                 })
-                st.success(f"✅ Terima kasih {st.session_state.nama_user}, saran Anda telah berhasil terkirim ke Pak Jamaluddin!")
+                st.success(f"✅ Terima kasih {st.session_state.nama_user}, saran Anda telah berhasil !")
             else:
                 st.warning("Mohon isi saran terlebih dahulu.")
 
