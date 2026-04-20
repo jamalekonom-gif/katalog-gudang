@@ -73,10 +73,10 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- PINTU RAHASIA PAK JAMALUDDIN (LOG & SARAN) ---
+    # --- MENU ADMIN PAK JAMALUDDIN ---
     if st.session_state.nik_user == "84200082":
         with st.expander("📊 MENU ADMIN (RAHASIA: LAPORAN & SARAN KARYAWAN)"):
-            tab1, tab2 = st.tabs(["👥 Riwayat Kunjungan", "📩 Pesan/Saran Karyawan"])
+            tab1, tab2 = st.tabs(["👥 Riwayat Kunjungan", "📩 Semua Kritik & Saran"])
             with tab1:
                 if st.session_state.log_kunjungan:
                     st.table(pd.DataFrame(st.session_state.log_kunjungan))
@@ -86,11 +86,11 @@ else:
                 if st.session_state.kotak_saran:
                     st.table(pd.DataFrame(st.session_state.kotak_saran))
                 else:
-                    st.write("Belum ada saran yang masuk.")
+                    st.write("Belum ada kritik/saran yang masuk.")
 
     st.divider()
     
-    # LOAD DATA
+    # --- FITUR PENCARIAN BARANG ---
     def load_data():
         encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
         for enc in encodings:
@@ -120,20 +120,38 @@ else:
                         st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin', '-')}</span>", unsafe_allow_html=True)
                         st.write(f"**Kode:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                         
-                        # FITUR SARAN (Muncul untuk semua, tapi hanya masuk ke Admin)
-                        with st.expander("📝 Berikan Catatan/Saran untuk barang ini"):
-                            saran_input = st.text_area("Tulis saran Anda:", key=f"saran_{i}")
-                            if st.button("Kirim Saran", key=f"btn_{i}"):
-                                if saran_input:
+                        # Saran Per Barang
+                        with st.expander("📝 Catatan khusus untuk barang ini"):
+                            s_khusus = st.text_area("Ada kendala dengan barang ini?", key=f"khusus_{i}")
+                            if st.button("Kirim Catatan Barang", key=f"btn_khusus_{i}"):
+                                if s_khusus:
                                     st.session_state.kotak_saran.append({
                                         "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                                         "Oleh": st.session_state.nama_user,
-                                        "Barang": row.get('Nama_Indo'),
-                                        "Pesan": saran_input
+                                        "Jenis": "Spesifik Barang",
+                                        "Detail": f"{row.get('Nama_Indo')} - {s_khusus}"
                                     })
-                                    st.success("Saran terkirim ke Pak Jamaluddin!")
-                                else:
-                                    st.warning("Mohon tulis pesan dulu.")
+                                    st.success("Terkirim!")
+                                    st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning("Data tidak ditemukan.")
+    
+    # --- FITUR KRITIK & SARAN UMUM (DI HALAMAN UTAMA) ---
+    st.divider()
+    st.subheader("📢 Kritik & Saran Umum")
+    with st.container():
+        st.write("Punya masukan atau keluhan terkait gudang? Tulis di bawah ini (Hanya Pak Jamaluddin yang bisa baca).")
+        saran_umum = st.text_area("Tulis kritik/saran Anda di sini...", placeholder="Contoh: Lampu gudang 6 mati, atau saran aplikasi...", key="saran_umum_input")
+        if st.button("Kirim Saran Umum", use_container_width=True):
+            if saran_umum:
+                st.session_state.kotak_saran.append({
+                    "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+                    "Oleh": st.session_state.nama_user,
+                    "Jenis": "Umum",
+                    "Detail": saran_umum
+                })
+                st.success("Terima kasih! Saran umum Anda telah terkirim secara rahasia.")
+                st.rerun()
+            else:
+                st.warning("Mohon isi saran terlebih dahulu.")
