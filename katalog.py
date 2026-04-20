@@ -5,10 +5,7 @@ from datetime import datetime
 # 1. KONFIGURASI HALAMAN
 st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
 
-# 2. NOMOR WHATSAPP BAPAK (PASTIKAN SUDAH BENAR)
-NOMOR_WA_BAPAK = "6285222452777" 
-
-# 3. DATA KARYAWAN
+# 2. DATA KARYAWAN RESMI
 DATA_KARYAWAN = {
     "84200082": "JAMALUDDIN",
     "84200061": "ENNI ROSDAENI",
@@ -18,20 +15,29 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
+# 3. DATABASE MEMORI (Sesi Aktif)
+if "log_kunjungan" not in st.session_state:
+    st.session_state.log_kunjungan = []
+if "kotak_saran" not in st.session_state:
+    st.session_state.kotak_saran = []
+
 # 4. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 5. CSS UNTUK MERAPIKAN TAMPILAN & GAMBAR KECIL
+# 5. CSS UNTUK TAMPILAN DASHBOARD RAPI
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
     
+    /* Background Halaman */
+    .main { background-color: #f8f9fa; }
+    
     /* Memaksa Gambar Tetap Kecil & Rapi */
     .img-box img {
-        width: 140px !important;
-        height: 140px !important;
+        width: 130px !important;
+        height: 130px !important;
         object-fit: contain;
         border-radius: 8px;
         background-color: #f8f9fa;
@@ -41,12 +47,12 @@ st.markdown("""
     .product-card { 
         background-color: white; padding: 12px; border-radius: 10px; 
         box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 8px; 
-        border-left: 5px solid #28a745;
+        border-left: 5px solid #007bff;
     }
     
-    .mandarin-text { color: #e67e22; font-weight: bold; font-size: 0.85em; background: #fff5eb; padding: 2px 5px; border-radius: 4px; }
+    .mandarin-text { color: #e67e22; font-weight: bold; font-size: 0.85em; background: #fff5eb; padding: 2px 5px; border-radius: 4px; display: inline-block; }
     .kode-badge { background-color: #34495e; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-family: monospace; }
-    .section-label { color: #2c3e50; font-weight: bold; font-size: 1rem; margin-bottom: -10px; }
+    .section-label { color: #2c3e50; font-weight: bold; font-size: 1rem; margin-bottom: -10px; margin-top: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,6 +71,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
+                st.session_state.log_kunjungan.append({"Waktu": datetime.now().strftime("%d/%m/%Y %H:%M"), "Nama": st.session_state.nama_user})
                 st.rerun()
             else: st.error("NIK Salah")
 else:
@@ -72,11 +79,22 @@ else:
     c1, c2 = st.columns([4, 1])
     with c1:
         st.markdown(f"### 📦 Catalog & Chat")
-        st.write(f"Halo, **{st.session_state.nama_user}**")
+        st.caption(f"User: {st.session_state.nama_user}")
     with c2:
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
+
+    # MENU ADMIN (KHUSUS PAK JAMALUDDIN)
+    if st.session_state.nik_user == "84200082":
+        with st.expander("📊 PANEL ADMIN (RIWAYAT & SARAN)"):
+            t1, t2 = st.tabs(["👥 Pengunjung", "📩 Rekap Saran"])
+            with t1: st.table(pd.DataFrame(st.session_state.log_kunjungan))
+            with t2: 
+                if st.session_state.kotak_saran:
+                    st.table(pd.DataFrame(st.session_state.kotak_saran))
+                else:
+                    st.write("Belum ada saran.")
 
     st.divider()
 
@@ -87,25 +105,30 @@ else:
     with col_kiri:
         st.markdown('<p class="section-label">💬 Obrolan Grup</p>', unsafe_allow_html=True)
         link_cbox = "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq"
-        st.components.v1.iframe(link_cbox, height=480, scrolling=True)
+        st.components.v1.iframe(link_cbox, height=500, scrolling=True)
         
-        # SARAN UMUM LANGSUNG KE WA
+        # SARAN UMUM (MASUK KE TAB ADMIN BAPAK)
         if st.session_state.nik_user != "84200082":
             st.write("#")
-            su = st.text_area("Ada saran umum untuk Gudang?")
-            if st.button("Kirim Saran Umum via WA"):
-                if su:
-                    msg_umum = f"Halo Pak Jamal, saya {st.session_state.nama_user} ingin memberi saran umum: {su}"
-                    target = f"https://wa.me/{NOMOR_WA_BAPAK}?text={msg_umum.replace(' ', '%20')}"
-                    st.markdown(f'<a href="{target}" target="_blank" style="text-decoration:none; background:#25D366; color:white; padding:8px; border-radius:5px;">📲 Klik Kirim ke WA</a>', unsafe_allow_html=True)
+            with st.expander("📢 Kirim Saran Umum"):
+                su = st.text_area("Tulis saran untuk gudang...", key="su_area")
+                if st.button("Kirim Saran"):
+                    if su:
+                        st.session_state.kotak_saran.append({
+                            "Waktu": datetime.now().strftime("%H:%M"),
+                            "Oleh": st.session_state.nama_user,
+                            "Konteks": "UMUM",
+                            "Pesan": su
+                        })
+                        st.success("Terkirim ke Admin!")
 
     # SISI KANAN: PENCARIAN BARANG
     with col_kanan:
         st.markdown('<p class="section-label">🔍 Cari Material</p>', unsafe_allow_html=True)
         search = st.text_input("", placeholder="Ketik nama atau kode barang...")
         
-        # FUNGSI ANTI-ERROR UNICODE
         def load_data():
+            # Mengatasi UnicodeDecodeError
             for enc in ['utf-8-sig', 'gb18030', 'cp1252', 'latin1']:
                 try:
                     df_temp = pd.read_csv("data_barang.csv", encoding=enc).fillna('')
@@ -133,11 +156,18 @@ else:
                                 st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
                             st.write(f"Kode: <span class='kode-badge'>{row.get('Kode')}</span>", unsafe_allow_html=True)
                             
-                            # TOMBOL SARAN PER BARANG KE WA
+                            # SARAN PER BARANG (MASUK KE TAB ADMIN BAPAK)
                             if st.session_state.nik_user != "84200082":
-                                teks_wa = f"Halo Pak Jamal, saya {st.session_state.nama_user}. Saran barang {row.get('Nama_Indo')} ({row.get('Kode')}): "
-                                link_wa = f"https://wa.me/{NOMOR_WA_BAPAK}?text={teks_wa.replace(' ', '%20')}"
-                                st.markdown(f'<a href="{link_wa}" target="_blank" style="color: #28a745; font-size: 0.85em; font-weight: bold; text-decoration:none;">📝 Kirim Saran Barang via WA</a>', unsafe_allow_html=True)
+                                with st.expander("📝 Saran Barang"):
+                                    sk = st.text_area("Masukan...", key=f"s_{i}")
+                                    if st.button("Kirim", key=f"b_{i}"):
+                                        st.session_state.kotak_saran.append({
+                                            "Waktu": datetime.now().strftime("%H:%M"),
+                                            "Oleh": st.session_state.nama_user,
+                                            "Konteks": f"{row.get('Nama_Indo')} ({row.get('Kode')})",
+                                            "Pesan": sk
+                                        })
+                                        st.success("Saran tersimpan!")
                         st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.warning("Barang tidak ditemukan.")
