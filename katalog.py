@@ -20,12 +20,14 @@ if "log_kunjungan" not in st.session_state:
     st.session_state.log_kunjungan = []
 if "kotak_saran" not in st.session_state:
     st.session_state.kotak_saran = []
+if "chat_gudang" not in st.session_state:
+    st.session_state.chat_gudang = [] # Tempat simpan obrolan
 
 # 4. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# CSS - BERSIH TANPA SIDEBAR
+# CSS - TAMPILAN BERSIH & BOX CHAT
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -37,6 +39,16 @@ st.markdown("""
     .product-card { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #007bff; }
     .mandarin-text { color: #d35400; font-weight: bold; background-color: #fff5eb; padding: 5px 10px; border-radius: 8px; display: inline-block; }
     .kode-badge { background-color: #34495e; color: white; padding: 3px 12px; border-radius: 50px; font-family: monospace; }
+    
+    /* Gaya Chat */
+    .chat-box {
+        background-color: #e9ecef;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 5px;
+    }
+    .chat-user { font-weight: bold; color: #007bff; font-size: 0.9em; }
+    .chat-time { color: #6c757d; font-size: 0.7em; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -56,7 +68,7 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
-                waktu = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                waktu = datetime.now().strftime("%H:%M")
                 st.session_state.log_kunjungan.append({"Waktu": waktu, "Nama": st.session_state.nama_user, "NIK": nik_input})
                 st.rerun()
             else:
@@ -67,89 +79,85 @@ else:
     
     c_nama, c_logout = st.columns([4, 1])
     with c_nama:
-        st.info(f"Selamat bekerja, **{st.session_state.nama_user}**!")
+        st.info(f"👤 **{st.session_state.nama_user}** (Online)")
     with c_logout:
         if st.button("Keluar (Logout)", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- MENU ADMIN PAK JAMALUDDIN (HANYA BACA LAPORAN) ---
+    # --- MENU ADMIN PAK JAMALUDDIN ---
     if st.session_state.nik_user == "84200082":
-        with st.expander("📊 MENU ADMIN (RAHASIA: LAPORAN & SARAN KARYAWAN)"):
-            tab1, tab2 = st.tabs(["👥 Riwayat Kunjungan", "📩 Semua Kritik & Saran"])
-            with tab1:
-                if st.session_state.log_kunjungan:
-                    st.table(pd.DataFrame(st.session_state.log_kunjungan))
-                else:
-                    st.write("Belum ada kunjungan.")
-            with tab2:
-                if st.session_state.kotak_saran:
-                    st.table(pd.DataFrame(st.session_state.kotak_saran))
-                else:
-                    st.write("Belum ada saran yang masuk.")
-    
-    # --- JIKA BUKAN PAK JAMALUDDIN, TAMPILKAN KOTAK SARAN UMUM ---
-    else:
-        st.divider()
-        st.subheader("📢 Kritik & Saran Umum")
-        saran_umum = st.text_area("Punya masukan atau keluhan terkait gudang? Tulis di sini...", key="saran_umum_input")
-        if st.button("Kirim Saran Umum", use_container_width=True):
-            if saran_umum:
-                st.session_state.kotak_saran.append({
-                    "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                    "Oleh": st.session_state.nama_user,
-                    "Jenis": "Umum",
-                    "Detail": saran_umum
+        with st.expander("📊 MENU ADMIN (RAHASIA)"):
+            tab1, tab2 = st.tabs(["👥 Riwayat Login", "📩 Kritik & Saran"])
+            with tab1: st.table(pd.DataFrame(st.session_state.log_kunjungan))
+            with tab2: st.table(pd.DataFrame(st.session_state.kotak_saran))
+
+    st.divider()
+
+    # --- FITUR OBROLAN (CHAT) GUDANG ---
+    with st.expander("💬 OBROLAN GRUP GUDANG (KOORDINASI)"):
+        # Tampilkan Pesan
+        chat_container = st.container(height=300)
+        for pesan in st.session_state.chat_gudang:
+            chat_container.markdown(f"""
+            <div class="chat-box">
+                <span class="chat-user">{pesan['User']}</span> <span class="chat-time">{pesan['Waktu']}</span><br>
+                {pesan['Pesan']}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Input Pesan
+        with st.form("chat_form", clear_on_submit=True):
+            teks_chat = st.text_input("Ketik pesan di sini...", placeholder="Contoh: Tolong cek stok baut di Rak A")
+            submit_chat = st.form_submit_button("Kirim")
+            if submit_chat and teks_chat:
+                st.session_state.chat_gudang.append({
+                    "User": st.session_state.nama_user,
+                    "Waktu": datetime.now().strftime("%H:%M"),
+                    "Pesan": teks_chat
                 })
-                st.success(f"✅ Terima kasih {st.session_state.nama_user}, saran Anda telah berhasil !")
-            else:
-                st.warning("Mohon isi saran terlebih dahulu.")
+                st.rerun()
 
     st.divider()
     
     # --- PENCARIAN BARANG ---
     def load_data():
-        encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
-        for enc in encodings:
-            try:
-                df = pd.read_csv("data_barang.csv", encoding=enc).fillna('')
-                df.columns = df.columns.str.strip()
-                return df
+        for enc in ['utf-8-sig', 'gb18030', 'cp1252']:
+            try: return pd.read_csv("data_barang.csv", encoding=enc).fillna('')
             except: continue
         return pd.DataFrame()
 
     df = load_data()
-    search = st.text_input("", placeholder="🔍 Cari Nama Barang atau Kode Material...")
+    search = st.text_input("", placeholder="🔍 Cari Barang...")
     
-    if search and not df.empty:
+    if search:
         hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
-        if not hasil.empty:
-            for i, row in hasil.iterrows():
-                with st.container():
-                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    c_foto, c_teks = st.columns([1, 2.5])
-                    with c_foto:
-                        foto = str(row.get('Foto', '')).strip()
-                        url = f"{BASE_URL}{foto}.jpg" if foto else "https://via.placeholder.com/300"
-                        st.image(url, use_container_width=True)
-                    with c_teks:
-                        st.markdown(f"### {row.get('Nama_Indo', '-')}")
-                        st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin', '-')}</span>", unsafe_allow_html=True)
-                        st.write(f"**Kode:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
-                        
-                        # Kotak Saran Khusus Barang (Hanya muncul jika bukan Admin)
-                        if st.session_state.nik_user != "84200082":
-                            with st.expander("📝 Berikan Catatan/Saran untuk barang ini"):
-                                s_khusus = st.text_area("Tulis catatan...", key=f"khusus_{i}")
-                                if st.button("Kirim Catatan", key=f"btn_khusus_{i}"):
-                                    if s_khusus:
-                                        st.session_state.kotak_saran.append({
-                                            "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-                                            "Oleh": st.session_state.nama_user,
-                                            "Jenis": "Spesifik Barang",
-                                            "Detail": f"{row.get('Nama_Indo')} - {s_khusus}"
-                                        })
-                                        st.success("✅ Terkirim ke Pak Jamaluddin!")
-                                    else:
-                                        st.warning("Mohon isi pesan.")
-                    st.markdown('</div>', unsafe_allow_html=True)
+        for i, row in hasil.iterrows():
+            with st.container():
+                st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                c_f, c_t = st.columns([1, 2.5])
+                with c_f:
+                    f = str(row.get('Foto', '')).strip()
+                    st.image(f"{BASE_URL}{f}.jpg" if f else "https://via.placeholder.com/300", use_container_width=True)
+                with c_t:
+                    st.markdown(f"### {row.get('Nama_Indo')}")
+                    st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
+                    st.write(f"**Kode:** {row.get('Kode')}")
+                    
+                    # Kotak Saran (Hanya Karyawan)
+                    if st.session_state.nik_user != "84200082":
+                        with st.expander("📝 Saran Barang"):
+                            s = st.text_area("Catatan...", key=f"s_{i}")
+                            if st.button("Kirim", key=f"b_{i}"):
+                                st.session_state.kotak_saran.append({"Waktu": datetime.now().strftime("%H:%M"), "Oleh": st.session_state.nama_user, "Detail": f"{row.get('Nama_Indo')} - {s}"})
+                                st.success("Terkirim!")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- KRITIK SARAN UMUM (Hanya Karyawan) ---
+    if st.session_state.nik_user != "84200082":
+        st.divider()
+        st.subheader("📢 Kritik & Saran Umum")
+        su = st.text_area("Masukan umum...", key="su")
+        if st.button("Kirim Saran Umum"):
+            st.session_state.kotak_saran.append({"Waktu": datetime.now().strftime("%H:%M"), "Oleh": st.session_state.nama_user, "Detail": su})
+            st.success("Terkirim!")
