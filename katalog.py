@@ -25,9 +25,17 @@ st.markdown("""
     
     .main { background-color: #f8f9fa; }
     
+    /* MODIFIKASI UKURAN GAMBAR AGAR TIDAK TERLALU BESAR */
+    .stImage img {
+        max-height: 250px;
+        width: auto;
+        border-radius: 10px;
+        object-fit: contain;
+    }
+    
     .product-card {
         background-color: white;
-        padding: 25px;
+        padding: 20px;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         margin-bottom: 25px;
@@ -37,7 +45,7 @@ st.markdown("""
     .mandarin-text {
         color: #d35400;
         font-weight: bold;
-        font-size: 1.2em;
+        font-size: 1.1em;
         background-color: #fff5eb;
         padding: 5px 10px;
         border-radius: 8px;
@@ -50,7 +58,7 @@ st.markdown("""
         padding: 3px 12px;
         border-radius: 50px;
         font-family: monospace;
-        font-size: 0.9em;
+        font-size: 0.8em;
     }
     </style>
     """, unsafe_allow_html=True)
