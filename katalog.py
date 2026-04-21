@@ -32,6 +32,7 @@ st.markdown("""<style>
     .mandarin-text { color: #d35400; font-weight: bold; background-color: #fff5eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
     .kode-badge { background-color: #34495e; color: white; padding: 1px 8px; border-radius: 4px; font-family: monospace; font-size: 0.8em; }
     .section-title { color: #2c3e50; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
+    .admin-btn { background-color: #ff4b4b; color: white; border-radius: 5px; padding: 10px; text-align: center; text-decoration: none; display: block; margin-top: 10px; font-weight: bold; }
     </style>""", unsafe_allow_html=True)
 
 # 5. LOGIKA LOGIN
@@ -65,25 +66,29 @@ else:
     # --- LAYOUT UTAMA ---
     col_kiri, col_kanan = st.columns([1.3, 2.7], gap="medium")
 
-    # KOLOM KIRI: CBOX (LOCK NAMA TOTAL)
+    # KOLOM KIRI: CBOX
     with col_kiri:
         st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
         
-        # Penentuan nama otomatis
         nama_fix = st.session_state.nama_user
-        if st.session_state.nik_user == "84200082":
+        is_admin = st.session_state.nik_user == "84200082"
+        
+        if is_admin:
             nama_fix = f"ADMIN-{st.session_state.nama_user}"
         
-        # Encode nama agar aman dalam URL
         nama_enc = urllib.parse.quote(nama_fix)
-        
-        # LINK DENGAN FITUR LOCK DAN HIDE NAMA
-        # &nme=...      -> Isi nama otomatis dari sistem
-        # &nmefixed=1   -> Kunci nama agar tidak bisa diedit karyawan
-        # &nmelock=1    -> SEMBUNYIKAN kotak input nama (karyawan hanya bisa ketik pesan)
         link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
         
         st.components.v1.iframe(link_cbox, height=550, scrolling=True)
+
+        # OPSI KHUSUS ADMIN JAMALUDDIN
+        if is_admin:
+            st.markdown("---")
+            st.markdown("⚙️ **Panel Kendali Admin**")
+            # Link ini akan membuka jendela baru untuk menghapus pesan
+            link_moderasi = "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod"
+            st.link_button("🗑️ HAPUS PESAN / MODERASI", link_moderasi, use_container_width=True, type="primary")
+            st.caption("Klik tombol di atas untuk menghapus chat yang tidak sesuai.")
 
     # KOLOM KANAN: KATALOG
     with col_kanan:
@@ -126,4 +131,3 @@ else:
                         with c_zoom:
                             with st.expander("🔍 Zoom"): st.image(url_large, use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
-                else: st.warning("Barang tidak ditemukan.")
