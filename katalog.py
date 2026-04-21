@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import os
 
 # 1. KONFIGURASI HALAMAN
 st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
 
-# 2. DATA KARYAWAN
+# 2. DATA KARYAWAN RESMI
 DATA_KARYAWAN = {
     "84200082": "JAMALUDDIN",
     "84200061": "ENNI ROSDAENI",
@@ -15,28 +16,22 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. DATABASE MEMORI (Hanya untuk Log Login)
-if "log_kunjungan" not in st.session_state:
-    st.session_state.log_kunjungan = []
-
-# 4. SETTING CLOUDINARY
+# 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
 
-# 5. CSS - BERSIH & PROFESIONAL
+# 4. CSS - BERSIH (TANPA KOTAK SARAN)
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
     
-    /* Kartu Produk */
     .product-card { 
         background-color: white; padding: 12px; border-radius: 10px; 
         box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 10px; 
         border-left: 5px solid #007bff;
     }
     
-    /* Ukuran Gambar 85px */
     .img-container {
         width: 85px; height: 85px; overflow: hidden; border-radius: 8px;
         border: 1px solid #eee; display: flex; align-items: center;
@@ -50,7 +45,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 6. LOGIKA LOGIN
+# 5. LOGIKA LOGIN
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -65,11 +60,6 @@ if not st.session_state.logged_in:
             if nik_input in DATA_KARYAWAN:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
-                st.session_state.nik_user = nik_input
-                st.session_state.log_kunjungan.append({
-                    "Waktu": datetime.now().strftime("%d/%m/%Y %H:%M"), 
-                    "Nama": st.session_state.nama_user
-                })
                 st.rerun()
             else:
                 st.error("⚠️ NIK Tidak Terdaftar")
@@ -79,17 +69,9 @@ else:
     with c_nama:
         st.markdown(f"### 📦 Digital Warehouse - {st.session_state.nama_user}")
     with c_logout:
-        if st.button("Keluar", use_container_width=True):
+        if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
-
-    # --- MENU ADMIN (Hanya Riwayat Login) ---
-    if st.session_state.nik_user == "84200082":
-        with st.expander("📊 PANEL ADMIN (RIWAYAT LOGIN)"):
-            if st.session_state.log_kunjungan:
-                st.table(pd.DataFrame(st.session_state.log_kunjungan))
-            else:
-                st.write("Belum ada data.")
 
     st.divider()
 
@@ -105,57 +87,50 @@ else:
     with col_kanan:
         st.markdown('<p class="section-title">🔍 Cari Material</p>', unsafe_allow_html=True)
         
+        # Nama file disesuaikan dengan GitHub Bapak
+        NAMA_FILE = "Data_barang.csv" if os.path.exists("Data_barang.csv") else "data_barang.csv"
+        
         @st.cache_data
-        def load_data():
-            # Mencoba membaca file dengan berbagai encoding agar karakter mandarin aman
+        def load_data(file):
             for enc in ['utf-8-sig', 'gb18030', 'cp1252']:
                 try:
-                    df = pd.read_csv("Data_barang.csv", encoding=enc).fillna('')
+                    df = pd.read_csv(file, encoding=enc).fillna('')
+                    # Bersihkan spasi di nama kolom
+                    df.columns = df.columns.str.strip()
                     return df
                 except: continue
             return pd.DataFrame()
 
-        df = load_data()
-        
-        # Pesan status data
-        if not df.empty:
-            st.caption(f"✅ Sistem Aktif. Total {len(df)} material siap dicari.")
-        
-        search = st.text_input("", placeholder="Ketik nama barang atau kode...")
-
-        if search and not df.empty:
-            # Pencarian di semua kolom
-            hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+        if os.path.exists(NAMA_FILE):
+            df = load_data(NAMA_FILE)
+            st.caption(f"✅ Sistem Aktif. Terbaca {len(df)} material.")
             
-            if not hasil.empty:
-                for i, row in hasil.iterrows():
-                    st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    c_foto, c_teks = st.columns([1, 4])
-                    
-                    with c_foto:
-                        foto = str(row.get('Foto', '')).strip()
-                        # Jika di CSV belum ada .jpg, kita tambahkan otomatis
-                        if foto and not foto.lower().endswith(('.jpg', '.png')):
-                            foto = f"{foto}.jpg"
+            search = st.text_input("", placeholder="Ketik nama barang atau kode...")
+
+            if search:
+                # Pencarian yang lebih fleksibel di semua kolom
+                hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+                
+                if not hasil.empty:
+                    for i, row in hasil.iterrows():
+                        st.markdown('<div class="product-card">', unsafe_allow_html=True)
+                        c_foto, c_teks = st.columns([1, 4])
                         
-                        url = f"{BASE_URL}{foto}" if foto else "https://via.placeholder.com/150"
-                        st.markdown(f'''
-                            <div class="img-container">
-                                <img src="{url}">
-                            </div>
-                        ''', unsafe_allow_html=True)
-                    
-                    with c_teks:
-                        # Mengambil data berdasarkan nama kolom di CSV Bapak
-                        nama_indo = row.get('Nama_Indo', '-')
-                        nama_mand = row.get('Nama_Mandarin', '')
-                        kode_mat = row.get('Kode', '-')
+                        with c_foto:
+                            foto = str(row.get('Foto', '')).strip()
+                            if foto and not foto.lower().endswith(('.jpg', '.png')):
+                                foto = f"{foto}.jpg"
+                            
+                            url = f"{BASE_URL}{foto}" if foto else "https://via.placeholder.com/150"
+                            st.markdown(f'<div class="img-container"><img src="{url}"></div>', unsafe_allow_html=True)
                         
-                        st.markdown(f"**{nama_indo}**")
-                        if nama_mand:
-                            st.markdown(f"<span class='mandarin-text'>{nama_mand}</span>", unsafe_allow_html=True)
-                        st.write(f"Kode: <span class='kode-badge'>{kode_mat}</span>", unsafe_allow_html=True)
-                    
-                    st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                st.warning(f"Material '{search}' tidak ditemukan.")
+                        with c_teks:
+                            st.markdown(f"**{row.get('Nama_Indo', '-')}**")
+                            if row.get('Nama_Mandarin'):
+                                st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
+                            st.write(f"Kode: <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.warning(f"Material '{search}' tidak ditemukan.")
+        else:
+            st.error("File Data_barang.csv tidak ditemukan di GitHub!")
