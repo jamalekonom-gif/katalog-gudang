@@ -17,19 +17,16 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. FUNGSI LOG KUNJUNGAN (SIMPAN KE FILE CSV)
-LOG_FILE = "log_pengunjung.csv"
+# 3. DATABASE LOG (Hanya aktif selama aplikasi berjalan)
+if "log_kunjungan" not in st.session_state:
+    st.session_state.log_kunjungan = []
 
-def catat_kunjungan(nama, nik):
-    waktu = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    data_baru = pd.DataFrame([{"Waktu": waktu, "Nama": nama, "NIK": nik}])
-    
-    if not os.path.isfile(LOG_FILE):
-        data_baru.to_csv(LOG_FILE, index=False)
-    else:
-        data_baru.to_csv(LOG_FILE, mode='a', header=False, index=False)
+# 4. SETTING CLOUDINARY
+CLOUD_NAME = "dj4xyen1s"
+BASE_URL_SMALL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
+BASE_URL_LARGE = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 4. CSS
+# 5. CSS
 st.markdown("""<style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
@@ -41,7 +38,7 @@ st.markdown("""<style>
     .section-title { color: #2c3e50; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
     </style>""", unsafe_allow_html=True)
 
-# 5. LOGIKA LOGIN
+# 6. LOGIKA LOGIN
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -56,8 +53,14 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
-                # CATAT KE FILE CSV
-                catat_kunjungan(st.session_state.nama_user, nik_input)
+                
+                # CATAT KUNJUNGAN
+                waktu_sekarang = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                st.session_state.log_kunjungan.append({
+                    "Waktu": waktu_sekarang,
+                    "Nama": st.session_state.nama_user,
+                    "NIK": nik_input
+                })
                 st.rerun()
             else: st.error("⚠️ NIK Tidak Terdaftar")
 else:
@@ -69,17 +72,18 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- PANEL MONITORING ADMIN (BACA DARI FILE CSV) ---
+    # --- PANEL KHUSUS ADMIN JAMALUDDIN ---
     is_admin = st.session_state.nik_user == "84200082"
     if is_admin:
-        with st.expander("📊 PANEL MONITORING ADMIN (DAFTAR HADIR)"):
-            if os.path.exists(LOG_FILE):
-                df_log = pd.read_csv(LOG_FILE)
-                # Tampilkan yang terbaru di atas
-                st.dataframe(df_log.iloc[::-1], use_container_width=True)
-                st.caption(f"Total kunjungan tercatat: {len(df_log)}")
+        with st.expander("📊 PANEL MONITORING ADMIN"):
+            st.write("**Riwayat Pengunjung Sesi Ini:**")
+            if st.session_state.log_kunjungan:
+                # Menampilkan tabel pengunjung
+                df_log = pd.DataFrame(st.session_state.log_kunjungan)
+                st.dataframe(df_log, use_container_width=True)
+                st.caption(f"Total kunjungan: {len(st.session_state.log_kunjungan)}")
             else:
-                st.write("Belum ada data kunjungan yang tersimpan.")
+                st.write("Belum ada data kunjungan.")
 
     st.divider()
 
@@ -89,10 +93,15 @@ else:
     # KOLOM KIRI: CBOX
     with col_kiri:
         st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
-        nama_fix = f"ADMIN-{st.session_state.nama_user}" if is_admin else st.session_state.nama_user
+        
+        nama_fix = st.session_state.nama_user
+        if is_admin:
+            nama_fix = f"ADMIN-{st.session_state.nama_user}"
+        
         nama_enc = urllib.parse.quote(nama_fix)
         link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
         st.components.v1.iframe(link_cbox, height=500, scrolling=True)
+
         if is_admin:
             st.link_button("🗑️ MODERASI CHAT (HAPUS)", "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod", use_container_width=True)
 
@@ -115,21 +124,25 @@ else:
             df = load_data(NAMA_FILE)
             st.caption(f"✅ Sistem Aktif. Terbaca {len(df)} material.")
             search = st.text_input("", placeholder="Ketik nama barang atau kode...")
+
             if search:
                 hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
                 if not hasil.empty:
                     for i, row in hasil.iterrows():
                         st.markdown('<div class="product-card">', unsafe_allow_html=True)
                         c_foto, c_teks, c_zoom = st.columns([1, 3.2, 0.8])
+                        
                         foto = str(row.get('Foto', '')).strip()
                         if foto and not foto.lower().endswith(('.jpg', '.png')): foto = f"{foto}.jpg"
-                        u_small = f"{BASE_URL_SMALL}{foto}" if foto else "https://via.placeholder.com/150"
-                        u_large = f"{BASE_URL_LARGE}{foto}" if foto else "https://via.placeholder.com/600"
-                        with c_foto: st.markdown(f'<div class="img-container"><img src="{u_small}"></div>', unsafe_allow_html=True)
+                        
+                        url_small = f"{BASE_URL_SMALL}{foto}" if foto else "https://via.placeholder.com/150"
+                        url_large = f"{BASE_URL_LARGE}{foto}" if foto else "https://via.placeholder.com/600"
+                        
+                        with c_foto: st.markdown(f'<div class="img-container"><img src="{url_small}"></div>', unsafe_allow_html=True)
                         with c_teks:
                             st.markdown(f"**{row.get('Nama_Indo', '-')}**")
                             if row.get('Nama_Mandarin'): st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
                             st.write(f"Kode: <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                         with c_zoom:
-                            with st.expander("🔍 Zoom"): st.image(u_large, use_container_width=True)
+                            with st.expander("🔍 Zoom"): st.image(url_large, use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
