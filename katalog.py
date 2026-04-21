@@ -17,7 +17,7 @@ if "kotak_saran" not in st.session_state: st.session_state.kotak_saran = []
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_150,h_150,c_pad,b_white/"
 
-# 5. CSS (Ukuran 75px)
+# 5. CSS (UKURAN 75PX)
 st.markdown("""<style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .product-card { background-color: white; padding: 10px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 8px; border-left: 4px solid #007bff; }
@@ -38,6 +38,7 @@ if not st.session_state.logged_in:
         if st.button("Masuk", use_container_width=True):
             if nik_input in DATA_KARYAWAN:
                 st.session_state.logged_in, st.session_state.nama_user, st.session_state.nik_user = True, DATA_KARYAWAN[nik_input], nik_input
+                st.session_state.log_kunjungan.append({"Waktu": datetime.now().strftime("%d/%m/%Y %H:%M"), "Nama": st.session_state.nama_user})
                 st.rerun()
             else: st.error("⚠️ NIK Salah")
 else:
@@ -51,47 +52,56 @@ else:
     if st.session_state.nik_user == "84200082":
         with st.expander("📊 PANEL ADMIN"):
             t1, t2 = st.tabs(["👥 Login", "📩 Saran"])
-            with t1: st.table(pd.DataFrame(st.session_state.log_kunjungan))
-            with t2: st.table(pd.DataFrame(st.session_state.kotak_saran))
+            if st.session_state.log_kunjungan: with t1: st.table(pd.DataFrame(st.session_state.log_kunjungan))
+            if st.session_state.kotak_saran: with t2: st.table(pd.DataFrame(st.session_state.kotak_saran))
 
     st.divider()
 
     # --- BAGIAN PENCARIAN ---
-    # CEK FILE CSV
-    if not os.path.exists("data_barang.csv"):
-        st.error("❌ File 'data_barang.csv' tidak ditemukan di GitHub Bapak!")
-    else:
-        # Load Data
-        df = pd.read_csv("data_barang.csv", encoding='utf-8-sig').fillna('')
-        st.success(f"✅ Berhasil memuat {len(df)} baris data.") # Menampilkan jumlah barang yang terbaca
+    # Nama file disesuaikan dengan gambar Bapak (D-nya besar)
+    NAMA_FILE = "Data_barang.csv" 
+    
+    if not os.path.exists(NAMA_FILE):
+        # Jika tidak ada D besar, coba cari d kecil
+        if os.path.exists("data_barang.csv"):
+            NAMA_FILE = "data_barang.csv"
+        else:
+            st.error(f"❌ File '{NAMA_FILE}' tidak ditemukan di GitHub Bapak!")
+            st.info("Pastikan nama file di GitHub sudah benar.")
+            st.stop()
+
+    # Muat Data
+    df = pd.read_csv(NAMA_FILE, encoding='utf-8-sig').fillna('')
+    st.caption(f"✅ Sistem siap. Berhasil memuat {len(df)} data material.")
+    
+    search = st.text_input("🔍 Cari Material (Nama/Kode):", placeholder="Ketik di sini...")
+    
+    if search:
+        # Cari di semua kolom (Nama_Indo, Kode, dll)
+        hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
         
-        search = st.text_input("🔍 Cari Nama atau Kode Barang:", placeholder="Contoh: Baut atau A001")
-        
-        if search:
-            # Cari di kolom Nama_Indo atau Kode
-            hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
-            
-            if not hasil.empty:
-                for i, row in hasil.iterrows():
-                    foto_name = str(row.get('Foto', '')).strip()
-                    if foto_name and not foto_name.lower().endswith(('.jpg', '.png')):
-                        foto_name = f"{foto_name}.jpg"
-                    
-                    st.markdown(f'''
-                    <div class="product-card">
-                        <div style="display: flex; gap: 12px; align-items: center;">
-                            <div class="img-box">
-                                <img src="{BASE_URL}{foto_name}">
-                            </div>
-                            <div style="flex: 1;">
-                                <h5 style="margin: 0; color: #2c3e50;">{row.get('Nama_Indo')}</h5>
-                                <div style="margin-top: 3px;">
-                                    <span class="mandarin-text">{row.get('Nama_Mandarin')}</span>
-                                    <span class="kode-badge">{row.get('Kode')}</span>
-                                </div>
+        if not hasil.empty:
+            for i, row in hasil.iterrows():
+                # Bersihkan nama foto
+                foto_id = str(row.get('Foto', '')).strip()
+                if foto_id and not foto_id.lower().endswith(('.jpg', '.png')):
+                    foto_id = f"{foto_id}.jpg"
+                
+                st.markdown(f'''
+                <div class="product-card">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="img-box">
+                            <img src="{BASE_URL}{foto_id}">
+                        </div>
+                        <div style="flex: 1;">
+                            <h5 style="margin: 0; color: #2c3e50;">{row.get('Nama_Indo')}</h5>
+                            <div style="margin-top: 3px;">
+                                <span class="mandarin-text">{row.get('Nama_Mandarin')}</span>
+                                <span class="kode-badge">Kode: {row.get('Kode')}</span>
                             </div>
                         </div>
                     </div>
-                    ''', unsafe_allow_html=True)
-            else:
-                st.warning(f"Barang '{search}' tidak ditemukan. Coba ketik nama lain.")
+                </div>
+                ''', unsafe_allow_html=True)
+        else:
+            st.warning(f"Material '{search}' tidak ditemukan.")
