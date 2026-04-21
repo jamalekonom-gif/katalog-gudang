@@ -17,12 +17,16 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. SETTING CLOUDINARY
+# 3. DATABASE LOG (Hanya aktif selama aplikasi berjalan)
+if "log_kunjungan" not in st.session_state:
+    st.session_state.log_kunjungan = []
+
+# 4. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL_SMALL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
 BASE_URL_LARGE = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 4. CSS
+# 5. CSS
 st.markdown("""<style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
@@ -32,10 +36,9 @@ st.markdown("""<style>
     .mandarin-text { color: #d35400; font-weight: bold; background-color: #fff5eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
     .kode-badge { background-color: #34495e; color: white; padding: 1px 8px; border-radius: 4px; font-family: monospace; font-size: 0.8em; }
     .section-title { color: #2c3e50; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
-    .admin-btn { background-color: #ff4b4b; color: white; border-radius: 5px; padding: 10px; text-align: center; text-decoration: none; display: block; margin-top: 10px; font-weight: bold; }
     </style>""", unsafe_allow_html=True)
 
-# 5. LOGIKA LOGIN
+# 6. LOGIKA LOGIN
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -50,6 +53,14 @@ if not st.session_state.logged_in:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
+                
+                # CATAT KUNJUNGAN
+                waktu_sekarang = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                st.session_state.log_kunjungan.append({
+                    "Waktu": waktu_sekarang,
+                    "Nama": st.session_state.nama_user,
+                    "NIK": nik_input
+                })
                 st.rerun()
             else: st.error("⚠️ NIK Tidak Terdaftar")
 else:
@@ -61,6 +72,19 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
+    # --- PANEL KHUSUS ADMIN JAMALUDDIN ---
+    is_admin = st.session_state.nik_user == "84200082"
+    if is_admin:
+        with st.expander("📊 PANEL MONITORING ADMIN"):
+            st.write("**Riwayat Pengunjung Sesi Ini:**")
+            if st.session_state.log_kunjungan:
+                # Menampilkan tabel pengunjung
+                df_log = pd.DataFrame(st.session_state.log_kunjungan)
+                st.dataframe(df_log, use_container_width=True)
+                st.caption(f"Total kunjungan: {len(st.session_state.log_kunjungan)}")
+            else:
+                st.write("Belum ada data kunjungan.")
+
     st.divider()
 
     # --- LAYOUT UTAMA ---
@@ -71,24 +95,15 @@ else:
         st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
         
         nama_fix = st.session_state.nama_user
-        is_admin = st.session_state.nik_user == "84200082"
-        
         if is_admin:
             nama_fix = f"ADMIN-{st.session_state.nama_user}"
         
         nama_enc = urllib.parse.quote(nama_fix)
         link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
-        
-        st.components.v1.iframe(link_cbox, height=550, scrolling=True)
+        st.components.v1.iframe(link_cbox, height=500, scrolling=True)
 
-        # OPSI KHUSUS ADMIN JAMALUDDIN
         if is_admin:
-            st.markdown("---")
-            st.markdown("⚙️ **Panel Kendali Admin**")
-            # Link ini akan membuka jendela baru untuk menghapus pesan
-            link_moderasi = "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod"
-            st.link_button("🗑️ HAPUS PESAN / MODERASI", link_moderasi, use_container_width=True, type="primary")
-            st.caption("Klik tombol di atas untuk menghapus chat yang tidak sesuai.")
+            st.link_button("🗑️ MODERASI CHAT (HAPUS)", "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod", use_container_width=True)
 
     # KOLOM KANAN: KATALOG
     with col_kanan:
