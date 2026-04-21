@@ -18,9 +18,12 @@ DATA_KARYAWAN = {
 
 # 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
-BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
+# URL untuk thumbnail (kecil)
+BASE_URL_SMALL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
+# URL untuk Zoom (besar & jernih)
+BASE_URL_LARGE = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 4. CSS - BERSIH (TANPA KOTAK SARAN)
+# 4. CSS
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
@@ -87,7 +90,6 @@ else:
     with col_kanan:
         st.markdown('<p class="section-title">🔍 Cari Material</p>', unsafe_allow_html=True)
         
-        # Nama file disesuaikan dengan GitHub Bapak
         NAMA_FILE = "Data_barang.csv" if os.path.exists("Data_barang.csv") else "data_barang.csv"
         
         @st.cache_data
@@ -95,7 +97,6 @@ else:
             for enc in ['utf-8-sig', 'gb18030', 'cp1252']:
                 try:
                     df = pd.read_csv(file, encoding=enc).fillna('')
-                    # Bersihkan spasi di nama kolom
                     df.columns = df.columns.str.strip()
                     return df
                 except: continue
@@ -108,29 +109,37 @@ else:
             search = st.text_input("", placeholder="Ketik nama barang atau kode...")
 
             if search:
-                # Pencarian yang lebih fleksibel di semua kolom
                 hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
                 
                 if not hasil.empty:
                     for i, row in hasil.iterrows():
+                        # --- Tampilan Kartu ---
                         st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                        c_foto, c_teks = st.columns([1, 4])
+                        c_foto, c_teks, c_zoom = st.columns([1, 3.2, 0.8])
+                        
+                        foto = str(row.get('Foto', '')).strip()
+                        if foto and not foto.lower().endswith(('.jpg', '.png')):
+                            foto = f"{foto}.jpg"
+                        
+                        url_small = f"{BASE_URL_SMALL}{foto}" if foto else "https://via.placeholder.com/150"
+                        url_large = f"{BASE_URL_LARGE}{foto}" if foto else "https://via.placeholder.com/600"
                         
                         with c_foto:
-                            foto = str(row.get('Foto', '')).strip()
-                            if foto and not foto.lower().endswith(('.jpg', '.png')):
-                                foto = f"{foto}.jpg"
-                            
-                            url = f"{BASE_URL}{foto}" if foto else "https://via.placeholder.com/150"
-                            st.markdown(f'<div class="img-container"><img src="{url}"></div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="img-container"><img src="{url_small}"></div>', unsafe_allow_html=True)
                         
                         with c_teks:
                             st.markdown(f"**{row.get('Nama_Indo', '-')}**")
                             if row.get('Nama_Mandarin'):
                                 st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
                             st.write(f"Kode: <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
+                        
+                        with c_zoom:
+                            # Tombol Expand (Zoom) Menggunakan Expander agar rapi
+                            with st.expander("🔍 Zoom"):
+                                st.image(url_large, caption=row.get('Nama_Indo'), use_container_width=True)
+                        
                         st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     st.warning(f"Material '{search}' tidak ditemukan.")
         else:
-            st.error("File Data_barang.csv tidak ditemukan di GitHub!")
+            st.error("File Data_barang.csv tidak ditemukan!")
