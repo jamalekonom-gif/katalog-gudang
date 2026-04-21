@@ -1,11 +1,14 @@
 import streamlit as st
 import pandas as pd
+import firebase_admin
+from firebase_admin import credentials, firestore
 from datetime import datetime
+import json
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
+st.set_page_config(page_title="Warehouse Catalog JAMAL", page_icon="📦", layout="wide")
 
-# 2. DATA KARYAWAN
+# 2. DATA KARYAWAN RESMI
 DATA_KARYAWAN = {
     "84200082": "JAMALUDDIN",
     "84200061": "ENNI ROSDAENI",
@@ -15,27 +18,48 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. DATABASE KUNJUNGAN (Sesi Aktif)
-if "log_kunjungan" not in st.session_state:
-    st.session_state.log_kunjungan = []
+# 3. KONEKSI KE FIREBASE (DATABASE)
+if not firebase_admin._apps:
+    # Mengambil rahasia dari info yang Bapak berikan
+    key_dict = st.secrets["textkey"] if "textkey" in st.secrets else {
+        "type": "service_account",
+        "project_id": "jamal-f27cc",
+        "private_key_id": "93c496d2c1cdbc6895a483eba775901636640557",
+        "private_key": st.secrets["private_key"].replace('\\n', '\n'),
+        "client_email": "firebase-adminsdk-fbsvc@jamal-f27cc.iam.gserviceaccount.com",
+        "client_id": "110514718222395303109",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40jamal-f27cc.iam.gserviceaccount.com"
+    }
+    cred = credentials.Certificate(key_dict)
+    firebase_admin.initialize_app(cred)
 
-# 4. SETTING CLOUDINARY
-CLOUD_NAME = "dj4xyen1s"
-BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
+db = firestore.client()
 
-# CSS - TANPA SIDEBAR & TAMPILAN BERSIH
+# Fungsi Simpan Saran ke Database
+def kirim_saran_ke_firebase(nama, konteks, pesan):
+    try:
+        db.collection("saran_gudang").add({
+            "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "oleh": nama,
+            "barang": konteks,
+            "isi_pesan": pesan
+        })
+        return True
+    except:
+        return False
+
+# 4. CSS (GAMBAR KECIL & RAPI)
 st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stDeployButton {display:none;}
-    [data-testid="stSidebar"] {display: none;}
-    
-    .stImage img { max-height: 250px; width: auto; border-radius: 10px; object-fit: contain; }
-    .product-card { background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #007bff; }
-    .mandarin-text { color: #d35400; font-weight: bold; background-color: #fff5eb; padding: 5px 10px; border-radius: 8px; display: inline-block; }
-    .kode-badge { background-color: #34495e; color: white; padding: 3px 12px; border-radius: 50px; font-family: monospace; }
+    #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
+    .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
+    .img-box img { width: 140px !important; height: 140px !important; object-fit: contain; border-radius: 10px; }
+    .product-card { background-color: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 10px; border-left: 5px solid #007bff; }
+    .mandarin-text { color: #e67e22; font-weight: bold; font-size: 0.9em; background: #fff5eb; padding: 3px 8px; border-radius: 5px; display: inline-block; }
+    .kode-badge { background-color: #34495e; color: white; padding: 2px 8px; border-radius: 5px; font-size: 0.8em; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -44,76 +68,82 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.write("#")
-        st.image("https://cdn-icons-png.flaticon.com/512/408/408710.png", width=100)
-        st.title("🔒 Akses Gudang")
-        nik_input = st.text_input("NIK Karyawan:", type="password")
-        if st.button("Masuk Ke Sistem", use_container_width=True):
-            if nik_input in DATA_KARYAWAN:
-                st.session_state.logged_in = True
-                st.session_state.nama_user = DATA_KARYAWAN[nik_input]
-                st.session_state.nik_user = nik_input
-                waktu = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                st.session_state.log_kunjungan.append({"Waktu": waktu, "Nama": st.session_state.nama_user, "NIK": nik_input})
+        st.title("🔒 Login Gudang")
+        nik = st.text_input("NIK:", type="password")
+        if st.button("Masuk"):
+            if nik in DATA_KARYAWAN:
+                st.session_state.logged_in, st.session_state.nama_user, st.session_state.nik_user = True, DATA_KARYAWAN[nik], nik
                 st.rerun()
-            else:
-                st.error("NIK Tidak Terdaftar")
+            else: st.error("NIK Salah")
 else:
-    # --- HALAMAN UTAMA SETELAH LOGIN ---
-    st.title("📦 Digital Warehouse Catalog")
-    
-    c_nama, c_logout = st.columns([4, 1])
-    with c_nama:
-        st.info(f"Selamat bekerja, **{st.session_state.nama_user}**!")
-    with c_logout:
-        if st.button("Keluar (Logout)", use_container_width=True):
+    # --- HEADER ---
+    c1, c2 = st.columns([4, 1])
+    with c1: st.subheader(f"📦 Catalog & Chat - {st.session_state.nama_user}")
+    with c2: 
+        if st.button("Keluar"): 
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- PINTU RAHASIA PAK JAMALUDDIN ---
+    # MENU ADMIN (PAK JAMALUDDIN MELIHAT SARAN)
     if st.session_state.nik_user == "84200082":
-        with st.expander("📊 KLIK DI SINI UNTUK LIHAT LAPORAN PENGUNJUNG (RAHASIA)"):
-            if st.session_state.log_kunjungan:
-                st.table(pd.DataFrame(st.session_state.log_kunjungan))
+        with st.expander("📊 LIHAT SARAN MASUK (FIREBASE REAL-TIME)"):
+            docs = db.collection("saran_gudang").order_by("waktu", direction=firestore.Query.DESCENDING).stream()
+            list_saran = []
+            for doc in docs:
+                list_saran.append(doc.to_dict())
+            
+            if list_saran:
+                st.table(pd.DataFrame(list_saran))
             else:
-                st.write("Belum ada kunjungan.")
+                st.write("Belum ada saran masuk.")
 
     st.divider()
-    
-    # --- FUNGSI LOAD DATA (DIPERBAIKI AGAR TIDAK ERROR UNICODE) ---
-    def load_data():
-        encodings = ['utf-8-sig', 'gb18030', 'utf-16', 'cp1252', 'latin1']
-        for enc in encodings:
-            try:
-                df = pd.read_csv("data_barang.csv", encoding=enc).fillna('')
-                df.columns = df.columns.str.strip()
-                return df
-            except:
-                continue
-        return pd.DataFrame()
 
-    df = load_data()
-    search = st.text_input("", placeholder="🔍 Cari Nama Barang atau Kode Material...")
-    
-    if search and not df.empty:
-        hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
-        if not hasil.empty:
-            for _, row in hasil.iterrows():
+    # --- LAYOUT DUA KOLOM ---
+    col_kiri, col_kanan = st.columns([1.1, 2.9], gap="medium")
+
+    with col_kiri:
+        st.write("**💬 Obrolan Grup**")
+        st.components.v1.iframe("https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq", height=450, scrolling=True)
+        
+        # SARAN UMUM (FIREBASE)
+        if st.session_state.nik_user != "84200082":
+            with st.expander("📢 Kirim Saran Umum"):
+                su = st.text_area("Masukan...", key="su_area")
+                if st.button("Kirim Saran"):
+                    if su:
+                        if kirim_saran_ke_firebase(st.session_state.nama_user, "UMUM", su):
+                            st.success("Terkirim!")
+
+    with col_kanan:
+        st.write("**🔍 Cari Material**")
+        search = st.text_input("", placeholder="Ketik nama/kode barang...")
+        
+        # Load Data
+        df = pd.read_csv("data_barang.csv", encoding='utf-8-sig').fillna('')
+
+        if search:
+            hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+            for i, row in hasil.iterrows():
                 with st.container():
                     st.markdown('<div class="product-card">', unsafe_allow_html=True)
-                    c_foto, c_teks = st.columns([1, 2.5])
-                    with c_foto:
+                    f1, f2 = st.columns([1, 3])
+                    with f1:
                         foto = str(row.get('Foto', '')).strip()
-                        url = f"{BASE_URL}{foto}.jpg" if foto else "https://via.placeholder.com/300"
-                        st.image(url, use_container_width=True)
-                    with c_teks:
-                        st.markdown(f"### {row.get('Nama_Indo', '-')}")
-                        st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin', '-')}</span>", unsafe_allow_html=True)
-                        st.write(f"**Kode:** <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
+                        url = f"https://res.cloudinary.com/dj4xyen1s/image/upload/f_auto,q_auto/{foto}.jpg"
+                        st.markdown(f'<div class="img-box"><img src="{url}"></div>', unsafe_allow_html=True)
+                    with f2:
+                        st.markdown(f"**{row.get('Nama_Indo')}**")
+                        if row.get('Nama_Mandarin'): st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
+                        st.write(f"Kode: <span class='kode-badge'>{row.get('Kode')}</span>", unsafe_allow_html=True)
+                        
+                        # SARAN BARANG (FIREBASE)
+                        if st.session_state.nik_user != "84200082":
+                            with st.expander("📝 Berikan Saran"):
+                                sk = st.text_area("Pesan...", key=f"s_{i}")
+                                if st.button("Kirim", key=f"b_{i}"):
+                                    if kirim_saran_ke_firebase(st.session_state.nama_user, f"{row.get('Nama_Indo')} ({row.get('Kode')})", sk):
+                                        st.success("Tersimpan!")
                     st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.warning("Data tidak ditemukan.")
-    else:
-        st.write("Silakan ketik pada kolom pencarian di atas.")
