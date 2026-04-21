@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
-import urllib.parse # Tambahan untuk merapikan format nama
+import urllib.parse
 
 # 1. KONFIGURASI HALAMAN
 st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
@@ -65,20 +65,23 @@ else:
     # --- LAYOUT UTAMA ---
     col_kiri, col_kanan = st.columns([1.3, 2.7], gap="medium")
 
-    # KOLOM KIRI: CBOX (OTOMATIS NAMA)
+    # KOLOM KIRI: CBOX (LOCK NAMA TOTAL)
     with col_kiri:
         st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
         
-        # LOGIKA NAMA OTOMATIS
-        nama_untuk_chat = st.session_state.nama_user
+        # Penentuan nama otomatis
+        nama_fix = st.session_state.nama_user
         if st.session_state.nik_user == "84200082":
-            nama_untuk_chat = f"ADMIN - {st.session_state.nama_user}"
+            nama_fix = f"ADMIN-{st.session_state.nama_user}"
         
-        # Format nama agar aman dibaca link (menghilangkan spasi)
-        nama_encoded = urllib.parse.quote(nama_untuk_chat)
+        # Encode nama agar aman dalam URL
+        nama_enc = urllib.parse.quote(nama_fix)
         
-        # LINK CBOX DENGAN NAMA OTOMATIS (&nme=...)
-        link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_encoded}"
+        # LINK DENGAN FITUR LOCK DAN HIDE NAMA
+        # &nme=...      -> Isi nama otomatis dari sistem
+        # &nmefixed=1   -> Kunci nama agar tidak bisa diedit karyawan
+        # &nmelock=1    -> SEMBUNYIKAN kotak input nama (karyawan hanya bisa ketik pesan)
+        link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
         
         st.components.v1.iframe(link_cbox, height=550, scrolling=True)
 
