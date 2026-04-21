@@ -24,7 +24,7 @@ if "kotak_saran" not in st.session_state:
 
 # 4. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
-BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_300,h_300,c_pad,b_white/"
+BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_150,h_150,c_pad,b_white/"
 
 # 5. CSS UNTUK UKURAN GAMBAR RAPI
 st.markdown("""
