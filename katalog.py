@@ -45,8 +45,8 @@ st.markdown("""
     /* PENGATURAN GAMBAR (PENTING) */
     .img-box {
         width: 100%;
-        max-width: 150px; /* Ukuran gambar dibatasi */
-        height: 150px;
+        max-width: 75px; /* Ukuran gambar dibatasi */
+        height: 75px;
         overflow: hidden;
         border-radius: 8px;
         border: 1px solid #eee;
