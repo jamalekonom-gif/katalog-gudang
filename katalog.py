@@ -17,11 +17,10 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. SETTING CLOUDINARY
+# 3. SETTING CLOUDINARY (Optimasi Gambar)
 CLOUD_NAME = "dj4xyen1s"
-# Kita gunakan BASE_URL tanpa embel-embel format di akhir agar lebih fleksibel
-BASE_URL_SMALL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
-BASE_URL_LARGE = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
+# Menggunakan f_auto dan q_auto agar Cloudinary otomatis memilih format terbaik (JPG/PNG)
+BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
 # 4. CSS
 st.markdown("""<style>
@@ -32,7 +31,6 @@ st.markdown("""<style>
     .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .mandarin-text { color: #d35400; font-weight: bold; background-color: #fff5eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
     .kode-badge { background-color: #34495e; color: white; padding: 1px 8px; border-radius: 4px; font-family: monospace; font-size: 0.8em; }
-    .section-title { color: #2c3e50; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
     </style>""", unsafe_allow_html=True)
 
 # 5. LOGIKA LOGIN
@@ -66,23 +64,19 @@ else:
     # --- LAYOUT UTAMA ---
     col_kiri, col_kanan = st.columns([1.3, 2.7], gap="medium")
 
-    # KOLOM KIRI: CBOX
     with col_kiri:
-        st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
+        st.markdown('**💬 Obrolan Grup**')
         is_admin = st.session_state.nik_user == "84200082"
         nama_fix = f"ADMIN-{st.session_state.nama_user}" if is_admin else st.session_state.nama_user
         nama_enc = urllib.parse.quote(nama_fix)
         link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
         st.components.v1.iframe(link_cbox, height=500, scrolling=True)
-        if is_admin:
-            st.link_button("🗑️ MODERASI CHAT (HAPUS)", "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod", use_container_width=True)
 
-    # KOLOM KANAN: KATALOG
     with col_kanan:
-        st.markdown('<p class="section-title">🔍 Cari Material</p>', unsafe_allow_html=True)
+        st.markdown('**🔍 Cari Material**')
         NAMA_FILE = "Data_barang.csv" if os.path.exists("Data_barang.csv") else "data_barang.csv"
         
-        @st.cache_data
+        # FUNGSI LOAD DATA DENGAN PEMBERSIH CACHE
         def load_data(file):
             for enc in ['utf-8-sig', 'gb18030', 'cp1252']:
                 try:
@@ -93,8 +87,16 @@ else:
             return pd.DataFrame()
 
         if os.path.exists(NAMA_FILE):
+            # Kita panggil langsung tanpa @st.cache_data agar data baru selalu terbaca
             df = load_data(NAMA_FILE)
-            st.caption(f"✅ Sistem Aktif. Terbaca {len(df)} material.")
+            
+            # Tombol Refresh untuk Admin
+            if is_admin:
+                if st.button("🔄 Refresh Data Baru"):
+                    st.cache_data.clear()
+                    st.rerun()
+            
+            st.caption(f"✅ Menampilkan {len(df)} material.")
             search = st.text_input("", placeholder="Ketik nama atau kode...")
 
             if search:
@@ -104,28 +106,22 @@ else:
                         st.markdown('<div class="product-card">', unsafe_allow_html=True)
                         c_foto, c_teks, c_zoom = st.columns([1, 3.2, 0.8])
                         
-                        # LOGIKA FOTO SUPER FLEKSIBEL
-                        foto_input = str(row.get('Foto', '')).strip()
+                        foto_csv = str(row.get('Foto', '')).strip()
                         
-                        if not foto_input or foto_input.lower() == 'nan':
-                            foto_final = "placeholder_v1.jpg" # Ganti dengan nama file placeholder Bapak jika ada
+                        if not foto_csv or foto_csv.lower() == 'nan':
+                            url_img = "https://via.placeholder.com/150?text=No+Image"
                         else:
-                            # Jika di CSV sudah ada titik (ekstensi), pakai apa adanya.
-                            # Jika tidak ada titik, tambahkan .jpg sebagai standar.
-                            if "." in foto_input:
-                                foto_final = foto_input
-                            else:
-                                foto_final = f"{foto_input}.jpg"
+                            # Jika di CSV sudah ada ekstensi (.jpg/.png), biarkan saja. 
+                            # Jika tidak ada, Cloudinary dengan f_auto akan mencoba mencarinya.
+                            url_img = f"{BASE_URL}{foto_csv}"
                         
-                        url_small = f"{BASE_URL_SMALL}{foto_final}"
-                        url_large = f"{BASE_URL_LARGE}{foto_final}"
-                        
-                        with c_foto: st.markdown(f'<div class="img-container"><img src="{url_small}"></div>', unsafe_allow_html=True)
+                        with c_foto: 
+                            st.markdown(f'<div class="img-container"><img src="{url_img}"></div>', unsafe_allow_html=True)
                         with c_teks:
                             st.markdown(f"**{row.get('Nama_Indo', '-')}**")
                             if row.get('Nama_Mandarin'): st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
                             st.write(f"Kode: <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
                         with c_zoom:
-                            with st.expander("🔍 Zoom"): st.image(url_large, use_container_width=True)
+                            with st.expander("🔍 Zoom"): st.image(url_img, use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
                 else: st.warning("Barang tidak ditemukan.")
