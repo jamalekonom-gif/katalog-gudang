@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import urllib.parse
+import time
 
 # 1. KONFIGURASI HALAMAN
 st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
@@ -17,16 +18,12 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. DATABASE LOG (Hanya aktif selama aplikasi berjalan)
-if "log_kunjungan" not in st.session_state:
-    st.session_state.log_kunjungan = []
-
-# 4. SETTING CLOUDINARY
+# 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
 BASE_URL_SMALL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_200,h_200,c_pad,b_white/"
 BASE_URL_LARGE = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 5. CSS
+# 4. CSS (Tampilan Bersih & Modern)
 st.markdown("""<style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
@@ -38,6 +35,14 @@ st.markdown("""<style>
     .section-title { color: #2c3e50; font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
     </style>""", unsafe_allow_html=True)
 
+# 5. FUNGSI SAPAAN WAKTU
+def dapatkan_sapaan():
+    jam = datetime.now().hour
+    if 5 <= jam < 11: return "🌅 Selamat Pagi"
+    elif 11 <= jam < 15: return "☀️ Selamat Siang"
+    elif 15 <= jam < 18: return "🌇 Selamat Sore"
+    else: return "🌙 Selamat Malam"
+
 # 6. LOGIKA LOGIN
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -47,43 +52,24 @@ if not st.session_state.logged_in:
     with col2:
         st.write("#")
         st.title("🔒 Akses Gudang")
-        nik_input = st.text_input("NIK Karyawan:", type="password")
+        nik_input = st.text_input("Masukkan NIK Anda:", type="password")
         if st.button("Masuk Ke Sistem", use_container_width=True):
             if nik_input in DATA_KARYAWAN:
                 st.session_state.logged_in = True
                 st.session_state.nama_user = DATA_KARYAWAN[nik_input]
                 st.session_state.nik_user = nik_input
-                
-                # CATAT KUNJUNGAN
-                waktu_sekarang = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                st.session_state.log_kunjungan.append({
-                    "Waktu": waktu_sekarang,
-                    "Nama": st.session_state.nama_user,
-                    "NIK": nik_input
-                })
                 st.rerun()
             else: st.error("⚠️ NIK Tidak Terdaftar")
 else:
     # --- HEADER ---
     c_nama, c_logout = st.columns([4, 1])
-    with c_nama: st.markdown(f"### 📦 Digital Warehouse - {st.session_state.nama_user}")
+    with c_nama: 
+        sapaan = dapatkan_sapaan()
+        st.markdown(f"### {sapaan}, **{st.session_state.nama_user}**!")
     with c_logout: 
         if st.button("Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
-
-    # --- PANEL KHUSUS ADMIN JAMALUDDIN ---
-    is_admin = st.session_state.nik_user == "84200082"
-    if is_admin:
-        with st.expander("📊 PANEL MONITORING ADMIN"):
-            st.write("**Riwayat Pengunjung Sesi Ini:**")
-            if st.session_state.log_kunjungan:
-                # Menampilkan tabel pengunjung
-                df_log = pd.DataFrame(st.session_state.log_kunjungan)
-                st.dataframe(df_log, use_container_width=True)
-                st.caption(f"Total kunjungan: {len(st.session_state.log_kunjungan)}")
-            else:
-                st.write("Belum ada data kunjungan.")
 
     st.divider()
 
@@ -93,15 +79,11 @@ else:
     # KOLOM KIRI: CBOX
     with col_kiri:
         st.markdown('<p class="section-title">💬 Obrolan Grup</p>', unsafe_allow_html=True)
-        
-        nama_fix = st.session_state.nama_user
-        if is_admin:
-            nama_fix = f"ADMIN-{st.session_state.nama_user}"
-        
+        is_admin = st.session_state.nik_user == "84200082"
+        nama_fix = f"ADMIN-{st.session_state.nama_user}" if is_admin else st.session_state.nama_user
         nama_enc = urllib.parse.quote(nama_fix)
         link_cbox = f"https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&nme={nama_enc}&nmefixed=1&nmelock=1"
         st.components.v1.iframe(link_cbox, height=500, scrolling=True)
-
         if is_admin:
             st.link_button("🗑️ MODERASI CHAT (HAPUS)", "https://www3.cbox.ws/box/?boxid=3554511&boxtag=eFn5Pq&sec=mod", use_container_width=True)
 
@@ -123,26 +105,46 @@ else:
         if os.path.exists(NAMA_FILE):
             df = load_data(NAMA_FILE)
             st.caption(f"✅ Sistem Aktif. Terbaca {len(df)} material.")
-            search = st.text_input("", placeholder="Ketik nama barang atau kode...")
+            search = st.text_input("", placeholder="Ketik nama atau kode material...")
 
             if search:
-                hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+                with st.spinner('Mencari di gudang...'):
+                    hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
+                
                 if not hasil.empty:
+                    st.write(f"Menampilkan {len(hasil)} hasil:")
                     for i, row in hasil.iterrows():
                         st.markdown('<div class="product-card">', unsafe_allow_html=True)
                         c_foto, c_teks, c_zoom = st.columns([1, 3.2, 0.8])
                         
-                        foto = str(row.get('Foto', '')).strip()
-                        if foto and not foto.lower().endswith(('.jpg', '.png')): foto = f"{foto}.jpg"
+                        # --- LOGIKA FOTO FLEKSIBEL ---
+                        foto_raw = str(row.get('Foto', '')).strip()
                         
-                        url_small = f"{BASE_URL_SMALL}{foto}" if foto else "https://via.placeholder.com/150"
-                        url_large = f"{BASE_URL_LARGE}{foto}" if foto else "https://via.placeholder.com/600"
+                        # Cek apakah sudah ada ekstensinya di CSV
+                        has_extension = any(foto_raw.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.webp'])
                         
-                        with c_foto: st.markdown(f'<div class="img-container"><img src="{url_small}"></div>', unsafe_allow_html=True)
+                        if foto_raw == "" or foto_raw.lower() == "nan":
+                            url_small = "https://via.placeholder.com/150?text=No+Image"
+                            url_large = "https://via.placeholder.com/600?text=No+Image"
+                        else:
+                            # Jika tidak ada ekstensi, default kita tambahkan .jpg (Cloudinary akan handle otomatis)
+                            # Tapi jika sudah ada ekstensi (.png/.jpeg), biarkan saja apa adanya
+                            foto_final = foto_raw if has_extension else f"{foto_raw}.jpg"
+                            url_small = f"{BASE_URL_SMALL}{foto_final}"
+                            url_large = f"{BASE_URL_LARGE}{foto_final}"
+                        
+                        with c_foto: 
+                            st.markdown(f'<div class="img-container"><img src="{url_small}"></div>', unsafe_allow_html=True)
+                        
                         with c_teks:
                             st.markdown(f"**{row.get('Nama_Indo', '-')}**")
-                            if row.get('Nama_Mandarin'): st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
+                            if row.get('Nama_Mandarin'): 
+                                st.markdown(f"<span class='mandarin-text'>{row.get('Nama_Mandarin')}</span>", unsafe_allow_html=True)
                             st.write(f"Kode: <span class='kode-badge'>{row.get('Kode', '-')}</span>", unsafe_allow_html=True)
+                        
                         with c_zoom:
-                            with st.expander("🔍 Zoom"): st.image(url_large, use_container_width=True)
+                            with st.expander("🔍 Zoom"): 
+                                st.image(url_large, use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.warning("Data tidak ditemukan.")
