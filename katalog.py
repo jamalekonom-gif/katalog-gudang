@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import urllib.parse
 
 # 1. KONFIGURASI HALAMAN
 st.set_page_config(page_title="Warehouse Digital Catalog", page_icon="📦", layout="wide")
@@ -15,7 +16,7 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. DATABASE MEMORI
+# 3. DATABASE MEMORI (Data akan hilang jika aplikasi restart)
 if "log_kunjungan" not in st.session_state:
     st.session_state.log_kunjungan = []
 if "kotak_saran" not in st.session_state:
@@ -23,35 +24,36 @@ if "kotak_saran" not in st.session_state:
 
 # 4. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
-# Menggunakan w_150 agar resolusi tetap tajam meski ditampilkan 75px
-BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_150,h_150,c_pad,b_white/"
+BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto,w_300,h_300,c_pad,b_white/"
 
-# 5. CSS UNTUK UKURAN GAMBAR 75PX
+# 5. CSS UNTUK UKURAN GAMBAR RAPI
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
     
+    /* Background */
     .main { background-color: #f8f9fa; }
     
+    /* Kartu Produk */
     .product-card { 
-        background-color: white; padding: 10px; border-radius: 8px; 
-        box-shadow: 0 1px 4px rgba(0,0,0,0.05); margin-bottom: 8px; 
-        border-left: 4px solid #007bff;
+        background-color: white; padding: 12px; border-radius: 10px; 
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 10px; 
+        border-left: 5px solid #007bff;
     }
     
-    /* UKURAN GAMBAR 75PX */
+    /* PENGATURAN GAMBAR (PENTING) */
     .img-box {
-        width: 75px;
-        height: 75px;
+        width: 100%;
+        max-width: 150px; /* Ukuran gambar dibatasi */
+        height: 150px;
         overflow: hidden;
-        border-radius: 6px;
-        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        border: 1px solid #eee;
         display: flex;
         align-items: center;
         justify-content: center;
         background-color: white;
-        flex-shrink: 0; /* Agar gambar tidak gepeng */
     }
     .img-box img {
         max-width: 100%;
@@ -61,12 +63,12 @@ st.markdown("""
     
     .mandarin-text { 
         color: #e67e22; font-weight: bold; background-color: #fff5eb; 
-        padding: 0px 5px; border-radius: 3px; font-size: 0.8em;
+        padding: 1px 6px; border-radius: 4px; font-size: 0.85em;
     }
     
     .kode-badge { 
-        background-color: #34495e; color: white; padding: 0px 5px; 
-        border-radius: 3px; font-family: monospace; font-size: 0.75em;
+        background-color: #34495e; color: white; padding: 1px 6px; 
+        border-radius: 4px; font-family: monospace; font-size: 0.8em;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -130,7 +132,6 @@ else:
         @st.cache_data
         def get_data():
             try:
-                # Menggunakan encoding utf-8-sig agar karakter mandarin aman
                 return pd.read_csv("data_barang.csv", encoding='utf-8-sig').fillna('')
             except:
                 return pd.DataFrame()
@@ -140,33 +141,34 @@ else:
         if search:
             hasil = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
             for i, row in hasil.iterrows():
-                # Tampilan Baris Produk
                 st.markdown(f'''
                 <div class="product-card">
-                    <div style="display: flex; gap: 12px; align-items: center;">
+                    <div style="display: flex; gap: 15px; align-items: flex-start;">
                         <div class="img-box">
                             <img src="{BASE_URL}{str(row.get('Foto', '')).strip()}.jpg">
                         </div>
                         <div style="flex: 1;">
-                            <h5 style="margin: 0; color: #2c3e50; font-size: 1rem;">{row.get('Nama_Indo')}</h5>
-                            <div style="margin-top: 3px;">
+                            <h4 style="margin: 0; color: #2c3e50;">{row.get('Nama_Indo')}</h4>
+                            <div style="margin-top: 5px;">
                                 <span class="mandarin-text">{row.get('Nama_Mandarin')}</span>
-                                <span class="kode-badge">{row.get('Kode')}</span>
+                            </div>
+                            <div style="margin-top: 5px;">
+                                <span class="kode-badge">Kode: {row.get('Kode')}</span>
                             </div>
                         </div>
                     </div>
                 </div>
                 ''', unsafe_allow_html=True)
                 
-                # Fitur Saran khusus untuk Karyawan
+                # Tombol Saran (Streamlit Button harus di luar f-string HTML)
                 if st.session_state.nik_user != "84200082":
-                    with st.expander(f"📝 Lapor {row.get('Nama_Indo')}"):
-                        pesan_saran = st.text_area("Catatan stok/kondisi...", key=f"txt_{i}")
-                        if st.button("Kirim", key=f"btn_{i}"):
+                    with st.expander(f"📝 Beri Saran untuk {row.get('Nama_Indo')}"):
+                        pesan_saran = st.text_area("Pesan...", key=f"txt_{i}")
+                        if st.button("Kirim Laporan", key=f"btn_{i}"):
                             st.session_state.kotak_saran.append({
                                 "Waktu": datetime.now().strftime("%H:%M"), 
                                 "Oleh": st.session_state.nama_user, 
                                 "Konteks": row.get('Nama_Indo'), 
                                 "Pesan": pesan_saran
                             })
-                            st.success("Laporan terkirim!")
+                            st.success("Laporan terkirim ke Admin!")
