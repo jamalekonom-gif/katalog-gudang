@@ -17,15 +17,15 @@ DATA_KARYAWAN = {
     "80519113": "UMI KHOLIFA"
 }
 
-# 3. SETTING CLOUDINARY (Optimasi Gambar)
+# 3. SETTING CLOUDINARY
 CLOUD_NAME = "dj4xyen1s"
-# Menggunakan f_auto dan q_auto agar Cloudinary otomatis memilih format terbaik (JPG/PNG)
 BASE_URL = f"https://res.cloudinary.com/{CLOUD_NAME}/image/upload/f_auto,q_auto/"
 
-# 4. CSS
+# 4. CSS (Penyesuaian untuk Tulisan Departemen)
 st.markdown("""<style>
     #MainMenu {visibility: hidden;} header {visibility: hidden;} footer {visibility: hidden;}
     .stDeployButton {display:none;} [data-testid="stSidebar"] {display: none;}
+    .dept-label { color: #555; font-size: 1.2rem; font-weight: bold; margin-bottom: -10px; letter-spacing: 2px; }
     .product-card { background-color: white; padding: 12px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 10px; border-left: 5px solid #007bff; }
     .img-container { width: 85px; height: 85px; overflow: hidden; border-radius: 8px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; background-color: white; flex-shrink: 0; }
     .img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -41,7 +41,10 @@ if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         st.write("#")
+        # --- PENAMBAHAN TULISAN DEPARTEMEN ---
+        st.markdown('<p class="dept-label">DEPARTEMEN GUDANG</p>', unsafe_allow_html=True)
         st.title("🔒 Akses Gudang")
+        
         nik_input = st.text_input("NIK Karyawan:", type="password")
         if st.button("Masuk Ke Sistem", use_container_width=True):
             if nik_input in DATA_KARYAWAN:
@@ -51,7 +54,7 @@ if not st.session_state.logged_in:
                 st.rerun()
             else: st.error("⚠️ NIK Tidak Terdaftar")
 else:
-    # --- HEADER ---
+    # --- HEADER UTAMA SETELAH LOGIN ---
     c_nama, c_logout = st.columns([4, 1])
     with c_nama: st.markdown(f"### 📦 Digital Warehouse - {st.session_state.nama_user}")
     with c_logout: 
@@ -61,7 +64,7 @@ else:
 
     st.divider()
 
-    # --- LAYOUT UTAMA ---
+    # --- LAYOUT KATALOG ---
     col_kiri, col_kanan = st.columns([1.3, 2.7], gap="medium")
 
     with col_kiri:
@@ -76,7 +79,6 @@ else:
         st.markdown('**🔍 Cari Material**')
         NAMA_FILE = "Data_barang.csv" if os.path.exists("Data_barang.csv") else "data_barang.csv"
         
-        # FUNGSI LOAD DATA DENGAN PEMBERSIH CACHE
         def load_data(file):
             for enc in ['utf-8-sig', 'gb18030', 'cp1252']:
                 try:
@@ -87,16 +89,15 @@ else:
             return pd.DataFrame()
 
         if os.path.exists(NAMA_FILE):
-            # Kita panggil langsung tanpa @st.cache_data agar data baru selalu terbaca
             df = load_data(NAMA_FILE)
             
-            # Tombol Refresh untuk Admin
+            # Tombol Refresh untuk Admin agar foto baru cepat muncul
             if is_admin:
                 if st.button("🔄 Refresh Data Baru"):
                     st.cache_data.clear()
                     st.rerun()
             
-            st.caption(f"✅ Menampilkan {len(df)} material.")
+            st.caption(f"✅ Sistem Aktif. Terbaca {len(df)} material.")
             search = st.text_input("", placeholder="Ketik nama atau kode...")
 
             if search:
@@ -107,12 +108,10 @@ else:
                         c_foto, c_teks, c_zoom = st.columns([1, 3.2, 0.8])
                         
                         foto_csv = str(row.get('Foto', '')).strip()
-                        
                         if not foto_csv or foto_csv.lower() == 'nan':
                             url_img = "https://via.placeholder.com/150?text=No+Image"
                         else:
-                            # Jika di CSV sudah ada ekstensi (.jpg/.png), biarkan saja. 
-                            # Jika tidak ada, Cloudinary dengan f_auto akan mencoba mencarinya.
+                            # Memanggil foto berdasarkan nama persis di CSV
                             url_img = f"{BASE_URL}{foto_csv}"
                         
                         with c_foto: 
@@ -124,4 +123,3 @@ else:
                         with c_zoom:
                             with st.expander("🔍 Zoom"): st.image(url_img, use_container_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
-                else: st.warning("Barang tidak ditemukan.")
